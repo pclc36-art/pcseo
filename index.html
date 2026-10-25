@@ -4,10 +4,47 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#020617" />
-    <title>Master Site Prompt Studio</title>
-    <meta name="description" content="Gerador profissional de prompts estratégicos para sites institucionais, landing pages e perfis GBP com IA e persistência." />
-    <meta property="og:title" content="Master Site Prompt Studio" />
-    <meta property="og:description" content="Gerador profissional de prompts estratégicos para sites institucionais, landing pages e perfis GBP com IA e persistência." />
+    <script>
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          var activeFetch = originalFetch ? originalFetch.bind(window) : undefined;
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              return activeFetch;
+            },
+            set: function(fn) {
+              activeFetch = fn;
+            }
+          });
+        } catch (e) {
+          // Ignore if descriptor modification is restricted
+        }
+
+        // Suppress any external extension errors that try to inject into iframe
+        window.addEventListener('error', function(event) {
+          if (event.filename && event.filename.includes('chrome-extension://')) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return false;
+          }
+          if (event.message && (
+            event.message.includes('Cannot set property fetch') ||
+            event.message.includes('has only a getter')
+          )) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return false;
+          }
+        }, true);
+      })();
+    </script>
+    <title>Remix SEO e Sites do PC</title>
+    <meta name="description" content="Gerador profissional de prompts estratégicos para sites institucionais, profissionais e landing pages com integração a IA e persistência." />
+    <meta property="og:title" content="Remix SEO e Sites do PC" />
+    <meta property="og:description" content="Gerador profissional de prompts estratégicos para sites institucionais, profissionais e landing pages com integração a IA e persistência." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <style>
