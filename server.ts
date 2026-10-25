@@ -1,8 +1,19 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { checkServerHealth, analyzeWithGemini, auditSiteWithGemini } from './src/server/api';
+import { 
+  checkServerHealth, 
+  analyzeWithGemini, 
+  auditSiteWithGemini,
+  analyzeGbpQuestionnaireWithGemini,
+  generateGbpDossierWithGemini,
+  auditGbpProfileWithGemini,
+  generatePitchWithGemini,
+  solveObjectionWithGemini
+} from './src/server/api';
+import { serverAuthStore } from './src/server/authStore';
 
 dotenv.config();
 
@@ -42,6 +53,46 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
+// GBP Endpoints
+app.post('/api/gbp/analyze-questionnaire', async (req, res) => {
+  try {
+    const { rawText } = req.body;
+    const result = await analyzeGbpQuestionnaireWithGemini(rawText || '');
+    if (result) {
+      return res.json({ success: true, data: result, source: 'gemini' });
+    }
+    return res.json({ success: false, source: 'heuristic', message: 'Fallback to heuristic generator' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/gbp/generate-dossier', async (req, res) => {
+  try {
+    const { questionnaire } = req.body;
+    const result = await generateGbpDossierWithGemini(questionnaire);
+    if (result) {
+      return res.json({ success: true, data: result, source: 'gemini' });
+    }
+    return res.json({ success: false, source: 'heuristic', message: 'Fallback to heuristic generator' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/gbp/audit-profile', async (req, res) => {
+  try {
+    const { auditRequest } = req.body;
+    const result = await auditGbpProfileWithGemini(auditRequest);
+    if (result) {
+      return res.json({ success: true, data: result, source: 'gemini' });
+    }
+    return res.json({ success: false, source: 'heuristic', message: 'Fallback to heuristic auditor' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Website Link Audit based on Master Prompt 2.1
 app.post('/api/audit-site', async (req, res) => {
   try {
@@ -61,7 +112,30 @@ app.post('/api/audit-site', async (req, res) => {
   }
 });
 
-import { serverAuthStore } from './src/server/authStore';
+// Sales Closer & Objection Solver Endpoints
+app.post('/api/sales/generate-pitch', async (req, res) => {
+  try {
+    const result = await generatePitchWithGemini(req.body);
+    if (result) {
+      return res.json({ success: true, data: result, source: 'gemini' });
+    }
+    return res.json({ success: false, source: 'heuristic', message: 'Fallback to heuristic generator' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/sales/solve-objection', async (req, res) => {
+  try {
+    const result = await solveObjectionWithGemini(req.body);
+    if (result) {
+      return res.json({ success: true, data: result, source: 'gemini' });
+    }
+    return res.json({ success: false, source: 'heuristic', message: 'Fallback to heuristic solver' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ================= AUTHENTICATION & MASTER ADMIN ENDPOINTS =================
 // Status: is admin registered?
@@ -166,12 +240,18 @@ app.post('/api/auth/reset-system-admin', (req, res) => {
 
 // Serve static frontend files from dist
 const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath));
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  app.get('*', (req, res) => {
+    res.status(200).send('Master Site Prompt Studio Server is running. Frontend build files are generating...');
+  });
+}
 
 app.listen(port, () => {
   console.log(`Master Site Prompt Studio server listening on port ${port}`);
 });
+
