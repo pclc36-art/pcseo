@@ -70,7 +70,7 @@ OBSERVAÇÕES ADICIONAIS:
 ${additionalNotes || 'Nenhuma'}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
 
   for (const modelName of modelsToTry) {
     try {
@@ -140,7 +140,7 @@ TEXTO RECEBIDO:
 ${rawText}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -201,7 +201,7 @@ Retorne um JSON com os campos correspondentes:
 - maintenancePlan90Days: { month1, month2, month3 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -264,7 +264,7 @@ DADOS / LINK FORNECIDO:
 ${JSON.stringify(request, null, 2)}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -446,7 +446,7 @@ EXECUTE A AUDITORIA E RETORNE UM JSON VÁLIDO contendo:
 11. "generatedNewPromptPreview": string com a descrição do novo prompt ideal para reconstruir esse site no Studio
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -589,7 +589,7 @@ Gere um JSON com o esquema exato:
 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -650,7 +650,7 @@ Retorne um JSON com o esquema:
 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const modelsToTry = ['gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({

@@ -382,11 +382,15 @@ O que falta para darmos início ao projeto e garantirmos a sua empresa na 1ª p�
 export const salesCloserEngine = {
   async generatePitch(request: SalesPitchRequest): Promise<SalesPitchResult> {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
       const response = await fetch('/api/sales/generate-pitch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       if (response.ok) {
         const json = await response.json();
         if (json.success && json.data) {
@@ -401,11 +405,15 @@ export const salesCloserEngine = {
 
   async solveObjection(request: ObjectionSolverRequest): Promise<ObjectionSolverResult> {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
       const response = await fetch('/api/sales/solve-objection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       if (response.ok) {
         const json = await response.json();
         if (json.success && json.data) {

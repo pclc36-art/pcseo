@@ -119,11 +119,15 @@ export async function analyzeGbpQuestionnaire(rawText: string): Promise<{
   source: 'gemini' | 'heuristic';
 }> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch('/api/gbp/analyze-questionnaire', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rawText }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (res.ok) {
       const json = await res.json();
@@ -484,11 +488,15 @@ export async function generateGbpDossier(q: GbpQuestionnaireData): Promise<{
   source: 'gemini' | 'heuristic';
 }> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch('/api/gbp/generate-dossier', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ questionnaire: q }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (res.ok) {
       const json = await res.json();
@@ -857,11 +865,15 @@ export async function auditGbpProfile(request: GbpAuditRequest): Promise<{
   source: 'gemini' | 'heuristic';
 }> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch('/api/gbp/audit-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ auditRequest: request }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (res.ok) {
       const json = await res.json();

@@ -558,11 +558,15 @@ export async function auditWebsiteWithMasterPrompt(request: SiteAuditRequest): P
   const heuristicReport = generateHeuristicSiteAudit(request);
 
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch('/api/audit-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (res.ok) {
       const json = await res.json();

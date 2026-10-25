@@ -64,7 +64,7 @@ ${questionnaire}
 OBSERVA\xC7\xD5ES ADICIONAIS:
 ${additionalNotes || "Nenhuma"}
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -125,7 +125,7 @@ Campos requeridos no JSON:
 TEXTO RECEBIDO:
 ${rawText}
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -179,7 +179,7 @@ Retorne um JSON com os campos correspondentes:
 - complianceChecks: Array de checks { item, status, details, howToFix }
 - maintenancePlan90Days: { month1, month2, month3 }
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -235,7 +235,7 @@ SE O USU\xC1RIO FORNECEU APENAS O LINK (URL do Google Maps ou nome no link):
 DADOS / LINK FORNECIDO:
 ${JSON.stringify(request, null, 2)}
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -386,7 +386,7 @@ EXECUTE A AUDITORIA E RETORNE UM JSON V\xC1LIDO contendo:
     ]
 11. "generatedNewPromptPreview": string com a descri\xE7\xE3o do novo prompt ideal para reconstruir esse site no Studio
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -523,7 +523,7 @@ Gere um JSON com o esquema exato:
   }
 }
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -578,7 +578,7 @@ Retorne um JSON com o esquema:
   "followUpPlan": "O que fazer caso ele n\xE3o responda nas pr\xF3ximas 24 horas"
 }
 `;
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({

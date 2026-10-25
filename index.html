@@ -9,7 +9,7 @@
         try {
           var originalFetch = window.fetch;
           var activeFetch = originalFetch ? originalFetch.bind(window) : undefined;
-          Object.defineProperty(window, 'fetch', {
+          var fetchDescriptor = {
             configurable: true,
             enumerable: true,
             get: function() {
@@ -18,22 +18,42 @@
             set: function(fn) {
               activeFetch = fn;
             }
-          });
+          };
+
+          try {
+            Object.defineProperty(window, 'fetch', fetchDescriptor);
+          } catch (e1) {}
+
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', fetchDescriptor);
+            } catch (e2) {}
+          }
         } catch (e) {
-          // Ignore if descriptor modification is restricted
+          // Ignore
         }
 
         // Suppress any external extension errors that try to inject into iframe
         window.addEventListener('error', function(event) {
-          if (event.filename && event.filename.includes('chrome-extension://')) {
+          var msg = event.message || '';
+          var file = event.filename || '';
+          if (file.indexOf('chrome-extension://') !== -1 ||
+              msg.indexOf('Cannot set property fetch') !== -1 ||
+              msg.indexOf('has only a getter') !== -1 ||
+              msg.indexOf('inspector.js') !== -1) {
             event.stopImmediatePropagation();
             event.preventDefault();
             return false;
           }
-          if (event.message && (
-            event.message.includes('Cannot set property fetch') ||
-            event.message.includes('has only a getter')
-          )) {
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event.reason || {};
+          var msg = reason.message || String(reason);
+          var stack = reason.stack || '';
+          if (stack.indexOf('chrome-extension://') !== -1 ||
+              msg.indexOf('Cannot set property fetch') !== -1 ||
+              msg.indexOf('has only a getter') !== -1) {
             event.stopImmediatePropagation();
             event.preventDefault();
             return false;

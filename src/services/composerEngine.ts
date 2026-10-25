@@ -133,11 +133,13 @@ Resolução adotada: Priorizar a veracidade dos fatos confirmados, proteção do
     case 'hostinger_static':
       hostingDetails = `Hostinger — Hospedagem Compartilhada / Arquivos Estáticos:
   * Publicação estática de alto desempenho: exportação dos arquivos gerados na pasta 'dist/' diretamente para a pasta 'public_html' via Git ou hPanel.
-  * Dispensa processo Node.js contínuo no servidor, garantindo estabilidade máxima, custo reduzido e tempo de resposta imediato.`;
+  * Banco de Dados Nativo Hostinger: Dispensa serviços externos como Supabase ou Firebase. Leads e contatos convertem diretamente para WhatsApp oficial e e-mail corporativo. Caso o cliente exija persistência em banco relacional, conectar diretamente ao MySQL/MariaDB nativo da própria Hostinger (já incluído no plano) ou SQLite/JSON local.
+  * PROIBIÇÃO DE SUPABASE: Não injetar dependência de Supabase, Cloud SQL ou serviços em nuvem externos desnecessários que exijam contratação ou chaves adicionais.`;
       break;
     case 'hostinger_vps':
       hostingDetails = `Hostinger — Cloud / VPS / Node.js:
-  * Suporte tanto a arquivos estáticos quanto a execução de Node.js/Docker caso o cliente demande rotas de API server-side ou SSR dinâmico.`;
+  * Suporte tanto a arquivos estáticos quanto a execução de Node.js/Docker caso o cliente demande rotas de API server-side ou SSR dinâmico.
+  * Banco de Dados Nativo Hostinger: Utilizar o MySQL, PostgreSQL ou MariaDB nativo instalado na Hostinger (ou SQLite local de alto desempenho). É terminantemente proibido exigir Supabase ou outros serviços externos.`;
       break;
     case 'vercel_netlify':
       hostingDetails = `Vercel / Netlify:

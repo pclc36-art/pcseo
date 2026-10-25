@@ -16,16 +16,43 @@ import { serverAuthStore } from './src/server/authStore.ts';
 
 function parseRequestBody(req: any): Promise<any> {
   return new Promise((resolve) => {
+    if (req.body && typeof req.body === 'object') {
+      return resolve(req.body);
+    }
+    if (typeof req.body === 'string') {
+      try {
+        return resolve(JSON.parse(req.body));
+      } catch {
+        return resolve({});
+      }
+    }
+    if (req.readableEnded) {
+      return resolve({});
+    }
+
     let data = '';
-    req.on('data', (chunk: any) => {
-      data += chunk;
-    });
-    req.on('end', () => {
+    const timeout = setTimeout(() => {
       try {
         resolve(data ? JSON.parse(data) : {});
       } catch {
         resolve({});
       }
+    }, 3000);
+
+    req.on('data', (chunk: any) => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      clearTimeout(timeout);
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    req.on('error', () => {
+      clearTimeout(timeout);
+      resolve({});
     });
   });
 }
