@@ -1,0 +1,8 @@
+{
+  "name": "Remix SEO e Sites do PC",
+  "description": "Gerador profissional de prompts estratégicos para sites institucionais, profissionais e landing pages com integração a IA e persistência.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
