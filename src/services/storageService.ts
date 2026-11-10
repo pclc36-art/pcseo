@@ -1,5 +1,9 @@
 import { MasterPromptVersion, Project } from '../types';
-import { DEFAULT_MASTER_PROMPT_CONTENT, DEFAULT_MASTER_PROMPT_VERSION } from '../data/defaultMasterPrompt';
+import { 
+  DEFAULT_MASTER_PROMPT_CONTENT, 
+  DEFAULT_MASTER_PROMPT_VERSION,
+  DEFAULT_MASTER_PROMPT_TITLE 
+} from '../data/defaultMasterPrompt';
 
 const STORAGE_KEYS = {
   MASTER_PROMPTS: 'master_site_prompt_versions_v1',
@@ -11,13 +15,13 @@ const STORAGE_KEYS = {
 
 // Initial default master prompt
 const initialDefaultMasterVersion: MasterPromptVersion = {
-  id: 'master-v7-0-default',
+  id: 'master-v11-0-default',
   version: DEFAULT_MASTER_PROMPT_VERSION,
-  title: 'MASTER SITE PROMPT 7.0 — WORLD-CLASS DIGITAL EXPERIENCE ENGINE',
-  description: 'Sistema Supremo de Criação de Sites, Landing Pages, Experiências Premium, SEO e Conversão (56 Diretrizes Inegociáveis).',
+  title: DEFAULT_MASTER_PROMPT_TITLE,
+  description: 'Sistema Supremo com Psicologia das Cores, Identidade Visual Adaptativa, 63 Diretrizes Inegociáveis e Personalização por Nicho.',
   content: DEFAULT_MASTER_PROMPT_CONTENT,
   characterCount: DEFAULT_MASTER_PROMPT_CONTENT.length,
-  createdAt: '2026-10-23T00:00:00.000Z',
+  createdAt: '2026-11-09T00:00:00.000Z',
   updatedAt: new Date().toISOString(),
   isDefault: true,
 };
@@ -35,7 +39,7 @@ class StorageService {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.MASTER_PROMPTS);
       if (!raw) {
-        // Initialize with default v7.0
+        // Initialize with default v11.0
         const initial = [initialDefaultMasterVersion];
         localStorage.setItem(STORAGE_KEYS.MASTER_PROMPTS, JSON.stringify(initial));
         localStorage.setItem(STORAGE_KEYS.ACTIVE_MASTER_ID, initialDefaultMasterVersion.id);
@@ -45,19 +49,23 @@ class StorageService {
       if (!Array.isArray(parsed) || parsed.length === 0) {
         return [initialDefaultMasterVersion];
       }
-      // If v7.0 is not in the list, inject and activate v7.0 as default
-      const hasV70 = parsed.some((v: MasterPromptVersion) => v.version === 'v7.0' || v.id === 'master-v7-0-default');
-      if (!hasV70) {
+      // If v11.0 is not in the list, inject and activate v11.0 as default
+      const hasV11 = parsed.some((v: MasterPromptVersion) => v.version === 'v11.0' || v.id === 'master-v11-0-default');
+      if (!hasV11) {
         parsed = [initialDefaultMasterVersion, ...parsed.map((v: MasterPromptVersion) => ({ ...v, isDefault: false }))];
         localStorage.setItem(STORAGE_KEYS.MASTER_PROMPTS, JSON.stringify(parsed));
         localStorage.setItem(STORAGE_KEYS.ACTIVE_MASTER_ID, initialDefaultMasterVersion.id);
       } else {
-        // Keep master-v7-0-default synchronized with latest DEFAULT_MASTER_PROMPT_CONTENT
-        const v7Index = parsed.findIndex((v: MasterPromptVersion) => v.id === 'master-v7-0-default' || v.version === 'v7.0');
-        if (v7Index >= 0 && parsed[v7Index].content !== DEFAULT_MASTER_PROMPT_CONTENT) {
-          parsed[v7Index].content = DEFAULT_MASTER_PROMPT_CONTENT;
-          parsed[v7Index].characterCount = DEFAULT_MASTER_PROMPT_CONTENT.length;
-          parsed[v7Index].updatedAt = new Date().toISOString();
+        // Keep master synchronized with latest DEFAULT_MASTER_PROMPT_CONTENT
+        const vIndex = parsed.findIndex((v: MasterPromptVersion) => v.id === 'master-v11-0-default' || v.version === 'v11.0' || v.id === 'master-v9-0-default' || v.version === 'v9.0');
+        if (vIndex >= 0 && parsed[vIndex].content !== DEFAULT_MASTER_PROMPT_CONTENT) {
+          parsed[vIndex].id = initialDefaultMasterVersion.id;
+          parsed[vIndex].version = initialDefaultMasterVersion.version;
+          parsed[vIndex].content = DEFAULT_MASTER_PROMPT_CONTENT;
+          parsed[vIndex].title = initialDefaultMasterVersion.title;
+          parsed[vIndex].description = initialDefaultMasterVersion.description;
+          parsed[vIndex].characterCount = DEFAULT_MASTER_PROMPT_CONTENT.length;
+          parsed[vIndex].updatedAt = new Date().toISOString();
           localStorage.setItem(STORAGE_KEYS.MASTER_PROMPTS, JSON.stringify(parsed));
         }
       }

@@ -8,11 +8,10 @@ import { ProjectsListView } from './components/ProjectsListView';
 import { MasterPromptManager } from './components/MasterPromptManager';
 import { SettingsModal } from './components/SettingsModal';
 import { GbpProHub } from './components/gbp/GbpProHub';
-import { DedicatedQuestionnairesHub } from './components/questionnaires/DedicatedQuestionnairesHub';
 import { AdminAreaView } from './components/admin/AdminAreaView';
 import { AdminGatekeeperView } from './components/admin/AdminGatekeeperView';
 import { SiteAuditorView } from './components/SiteAuditorView';
-import { SalesCloserView } from './components/sales/SalesCloserView';
+import { MediaOptimizerView } from './components/media/MediaOptimizerView';
 import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
 import { storageService } from './services/storageService';
 import { authService, AdminUser } from './services/authService';
@@ -323,14 +322,14 @@ export default function App() {
     switch (activeTab) {
       case 'dashboard':
         return { title: 'Painel Geral', badge: 'Visão Geral & Acesso Rápido' };
-      case 'sales_closer':
-        return { title: 'Fechador de Vendas & Objeções', badge: 'SEO 100 • Design Encantador • Contra-Ataque' };
+      case 'media_optimizer':
+        return { title: 'Otimizador de Mídias para Sites & LPs', badge: 'WebP, Vídeos & PageSpeed 100' };
       case 'site_auditor':
-        return { title: 'Auditor de Sites pelo Prompt Mestre', badge: 'Master Prompt 7.0 & Otimização' };
+        return { title: 'Auditor de Sites pelo Prompt Mestre', badge: 'Master Site Engine 9.0 & Otimização' };
       case 'questionnaires':
-        return { title: 'Super Questionários por Nicho', badge: '33 Nichos • 1.048 Perguntas' };
+        return { title: 'Google Business Profile Pro', badge: '33 Questionários por Nicho' };
       case 'gbp_pro':
-        return { title: 'Google Business Profile Pro', badge: 'Auditoria 1-Clique & Dossiê 100/100' };
+        return { title: 'Google Business Profile Pro', badge: '33 Nichos, Auditoria & Dossiê 100/100' };
       case 'projects':
         return { title: 'Meus Projetos de Sites', badge: `${projects.length} Cadastrados` };
       case 'master_prompt':
@@ -424,20 +423,6 @@ export default function App() {
                 <span className="hidden sm:inline">Início</span>
               </button>
             )}
-
-            {/* Vendas & Objeções (Atalho Rápido) */}
-            <button
-              onClick={() => navigateToTab('sales_closer')}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                activeTab === 'sales_closer'
-                  ? 'bg-gradient-to-r from-rose-600 to-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-900 border border-slate-800 text-rose-300 hover:bg-slate-800'
-              }`}
-              title="Fechador de Vendas & Objeções"
-            >
-              <Flame className="w-3.5 h-3.5 text-rose-400" />
-              <span className="text-[11px] sm:text-xs">Vendas</span>
-            </button>
 
             {/* Auditor de Sites (visível a partir de sm: 640px) */}
             <button
@@ -537,20 +522,14 @@ export default function App() {
             />
           )}
 
-          {/* DEDICATED SUPER QUESTIONNAIRES VIEW */}
+          {/* DEDICATED 33 QUESTIONNAIRES VIEW (INSIDE GBP PRO AREA) */}
           {activeTab === 'questionnaires' && (
-            <DedicatedQuestionnairesHub
+            <GbpProHub
               onNotify={showToast}
               onBack={handleBack}
-              onGenerateDossierFromQuestionnaire={(data) => {
-                setPendingGbpQuestionnaire(data);
-                navigateToTab('gbp_pro');
-                showToast(
-                  'Questionário Mapeado!',
-                  `Gerando Perfil Google Meu Negócio Padrão Ouro para ${data.businessName || 'sua empresa'}...`,
-                  'success'
-                );
-              }}
+              initialSubTab="questionnaires"
+              initialQuestionnaire={pendingGbpQuestionnaire}
+              onClearInitialQuestionnaire={() => setPendingGbpQuestionnaire(null)}
             />
           )}
 
@@ -559,14 +538,10 @@ export default function App() {
             <GbpProHub
               onNotify={showToast}
               onBack={handleBack}
+              initialSubTab="create"
               initialQuestionnaire={pendingGbpQuestionnaire}
               onClearInitialQuestionnaire={() => setPendingGbpQuestionnaire(null)}
             />
-          )}
-
-          {/* SALES CLOSER VIEW (SCRIPTS, OBJECTIONS, SEO 100 & GMN PITCH) */}
-          {activeTab === 'sales_closer' && (
-            <SalesCloserView onNotify={showToast} onBack={handleBack} />
           )}
 
           {/* ADMIN AREA VIEW (LOGIN, FIRST TIME REGISTRATION, PASSWORD RECOVERY) */}
@@ -604,6 +579,11 @@ export default function App() {
                 );
               }}
             />
+          )}
+
+          {/* MEDIA OPTIMIZER VIEW (WEBP, VIDEO & PAGESPEED 100) */}
+          {activeTab === 'media_optimizer' && (
+            <MediaOptimizerView onNotify={showToast} onBack={handleBack} />
           )}
 
           {activeTab === 'new_project' && (

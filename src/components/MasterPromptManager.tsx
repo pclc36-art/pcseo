@@ -110,7 +110,7 @@ export const MasterPromptManager: React.FC<MasterPromptManagerProps> = ({
     }
   };
 
-  // Restore Default Master Prompt 7.0
+  // Restore Default Master Site Engine 9.0
   const confirmResetToOfficialDefault = () => {
     const restored = storageService.resetToDefaultMasterPrompt();
     setSelectedVersionId(restored.id);
@@ -119,7 +119,7 @@ export const MasterPromptManager: React.FC<MasterPromptManagerProps> = ({
     setDescription(restored.description);
     setIsRestoreModalOpen(false);
     onVersionChange();
-    onShowToast('Padrão 7.0 Restaurado!', 'O Master Site Prompt 7.0 oficial (56 Diretrizes) foi restaurado.', 'info');
+    onShowToast('Padrão 9.0 Restaurado!', 'O Master Site Prompt 7.0 oficial (63 Diretrizes) foi restaurado.', 'info');
   };
 
   // Export Version as TXT
@@ -161,10 +161,10 @@ export const MasterPromptManager: React.FC<MasterPromptManagerProps> = ({
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
             <Layers className="w-6 h-6 text-cyan-400" />
-            <span>Gerenciamento do Prompt Mestre 7.0 (World-Class Engine)</span>
+            <span>Gerenciamento do Master Site Engine 9.0 (World-Class Engine)</span>
           </h1>
           <p className="mt-1 text-xs text-slate-400">
-            56 Diretrizes Inegociáveis de Direção de Arte, Astro-First, Motion 60fps, SEO/GEO e CRO de Alta Conversão.
+            63 Diretrizes Inegociáveis de Direção de Arte, Astro-First, Motion 60fps, SEO/GEO e CRO de Alta Conversão.
           </p>
         </div>
 
@@ -172,10 +172,10 @@ export const MasterPromptManager: React.FC<MasterPromptManagerProps> = ({
           <button
             onClick={() => setIsRestoreModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors cursor-pointer"
-            title="Restaurar o texto oficial do Master Prompt 7.0 (56 Diretrizes)"
+            title="Restaurar o texto oficial do Master Site Engine 9.0 (63 Diretrizes)"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-            <span>Restaurar Padrão 7.0</span>
+            <span>Restaurar Padrão 9.0</span>
           </button>
 
           <button
@@ -396,9 +396,9 @@ export const MasterPromptManager: React.FC<MasterPromptManagerProps> = ({
       {isRestoreModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white text-center">Restaurar Padrão 7.0?</h3>
+            <h3 className="text-base font-bold text-white text-center">Restaurar Padrão 9.0?</h3>
             <p className="text-xs text-slate-300 text-center leading-relaxed">
-              Deseja restaurar a versão oficial completa do <strong>MASTER SITE PROMPT 7.0</strong> (56 Diretrizes Inegociáveis)?
+              Deseja restaurar a versão oficial completa do <strong>MASTER SITE ENGINE 9.0</strong> (63 Diretrizes Inegociáveis)?
             </p>
             <div className="flex items-center gap-2 pt-2">
               <button

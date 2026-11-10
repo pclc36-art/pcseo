@@ -148,30 +148,57 @@ ${rawText}
 async function generateGbpDossierWithGemini(data) {
   const ai = getGeminiClient();
   if (!ai) return null;
-  const prompt = `Voc\xEA \xE9 um Consultor Estrat\xE9gico Master em Google Business Profile (Perfil da Empresa no Google).
-Gere um dossi\xEA completo, profissional e pronto para implanta\xE7\xE3o com base nos dados do cliente a seguir.
-Respeite rigorosamente todas as diretrizes oficiais do Google:
-1. NUNCA adicione palavras-chave promocionais ao nome da empresa (evitar suspens\xE3o).
-2. A descri\xE7\xE3o oficial DEVE ter NO M\xC1XIMO 750 caracteres e capturar a aten\xE7\xE3o nos primeiros 250 caracteres (sem links, sem "clique aqui", sem superlativos falsos).
-3. Recomende 1 Categoria Prim\xE1ria exata da taxonomia oficial do Google e at\xE9 4 categorias secund\xE1rias pertinentes.
-4. Defina a estrat\xE9gia de endere\xE7o (F\xEDsico vs \xC1rea de Atendimento / SAB) e como realizar a verifica\xE7\xE3o sem problemas.
-5. Desenvolva um cat\xE1logo de servi\xE7os/produtos claros com descri\xE7\xF5es persuasivas.
-6. Crie checklist de fotos detalhado com especifica\xE7\xF5es t\xE9cnicas e nomes de arquivo otimizados para SEO Local (ex: nome-do-servico-bairro.jpg).
-7. Forne\xE7a estrat\xE9gia \xE9tica de avalia\xE7\xF5es (sem compra de reviews) com 5 templates completos de resposta (5 estrelas, 4 estrelas com feedback, 3 estrelas neutro, 1-2 estrelas cr\xEDtico, e suspeita de fake/injusta).
-8. Crie um calend\xE1rio de 30 dias de postagens com 6 a 8 posts detalhados (headline, corpo, bot\xE3o de CTA exato, orienta\xE7\xE3o visual).
-9. Elabore FAQ localizado de 5 a 8 perguntas estrat\xE9gicas de alta inten\xE7\xE3o de busca local.
-10. Checklist de compliance e plano de a\xE7\xE3o de 90 dias dividido em M\xEAs 1, M\xEAs 2 e M\xEAs 3.
+  const prompt = `Voc\xEA \xE9 o Maior Consultor Estrat\xE9gico em Google Business Profile (Perfil da Empresa no Google), Local SEO e Otimiza\xE7\xE3o para o Google Local 3-Pack (Top 3 do Google Maps) do Brasil.
+Sua miss\xE3o \xE9 processar as respostas estrat\xE9gicas do question\xE1rio do cliente (baseado na matriz oficial dos 33 nichos de mercado da plataforma) e gerar um Dossi\xEA de Autoridade M\xE1xima 100/100, estritamente focado em PERFORMANCE e DOM\xCDNIO DO TOPO NO GOOGLE MAPS.
 
-DADOS DO CLIENTE:
+DIRETRIZES T\xC9CNICAS E FATORES DETERMINANTES DE RANQUEAMENTO (ALGORITMO DO GOOGLE MAPS):
+1. CONSIST\xCANCIA NAP & ANTI-SUSPENS\xC3O (Fator de Confian\xE7a):
+   - NUNCA adicione palavras-chave promocionais artificiais ao nome comercial oficial da empresa (ex: NUNCA crie "Dr. Jo\xE3o - O Melhor Dentista de S\xE3o Paulo"). Use o nome exato conforme fachada e CNPJ para garantir 0% de risco de suspens\xE3o manual ou algor\xEDtmica.
+   - Padronize o formato de telefone com DDD e endere\xE7o para cita\xE7\xF5es locais consistentes.
+2. TAXONOMIA OFICIAL DE CATEGORIAS (Fator #1 de Relev\xE2ncia Local):
+   - Identifique a Categoria Prim\xE1ria EXATA da taxonomia do Google Maps que melhor representa o core business do cliente entre os 33 nichos cadastrados. Ela responde por mais de 60% da relev\xE2ncia do perfil!
+   - Sugira at\xE9 4 Categorias Secund\xE1rias oficiais que capturem buscas correlatas de alto volume sem gerar canibaliza\xE7\xE3o.
+   - Liste categorias a evitar (que diluem a relev\xE2ncia ou atraem p\xFAblico errado).
+3. GEOLOCALIZA\xC7\xC3O & BAIRROS DE MAIOR TICKET (Fator de Proximidade e Alcance):
+   - Mapeie o raio de cobertura ideal e liste explicitamente os 5 a 8 bairros de maior poder aquisitivo ou demanda da cidade para cadastrar como \xC1reas de Cobertura (Service Areas).
+   - Se for estabelecimento com atendimento local, oriente como manter o endere\xE7o p\xFAblico e seguro para receber rotas no Maps. Se for servi\xE7o a domic\xEDlio/sem letreiro, oriente o modelo SAB (Service Area Business) sem endere\xE7o p\xFAblico.
+4. MATRIZ DE PALAVRAS-CHAVE DE ALTA INTEN\xC7\xC3O COMERCIAL:
+   - Extraia e defina a Palavra-Chave Principal e 6+ Palavras-Chave Secund\xE1rias com modificadores geogr\xE1ficos reais ("perto de mim", "na minha cidade", "no centro", "[bairro]").
+5. DESCRI\xC7\xC3O OFICIAL DE 750 CARACTERES (Otimizada para Convers\xE3o e SEO):
+   - M\xC1XIMO DE 750 CARACTERES.
+   - OS PRIMEIROS 250 CARACTERES devem conter o gancho magn\xE9tico com a palavra-chave prim\xE1ria, a autoridade do neg\xF3cio (anos de mercado, diferenciais) e a localiza\xE7\xE3o exata, pois \xE9 o trecho vis\xEDvel antes do bot\xE3o "...mais".
+   - Restante da descri\xE7\xE3o detalhando servi\xE7os e chamada para a\xE7\xE3o (CTA).
+   - PROIBIDO: links externos, n\xFAmeros de telefone soltos, termos em caixa alta exagerada ("GR\xC1TIS", "MELHOR DO MUNDO") ou promo\xE7\xF5es tempor\xE1rias.
+6. CAT\xC1LOGO DE SERVI\xC7OS E PRODUTOS DE MAIOR MARGEM:
+   - Crie de 4 a 6 itens priorit\xE1rios com t\xEDtulos exatos de busca comercial, pre\xE7os reais/estimados e descri\xE7\xF5es persuasivas ricas em palavras-chave que convencem o cliente a ligar ou agendar.
+7. CHECKLIST DE FOTOS GEOLOCALIZADAS (Sinais Visuais de Proemin\xEAncia):
+   - 6 a 8 orienta\xE7\xF5es de fotos t\xE9cnicas (fachada com luz diurna, recep\xE7\xE3o, equipe uniformizada, procedimentos com autoriza\xE7\xE3o, equipamentos e certificados).
+   - Sugira nomes de arquivos em padr\xE3o SEO para upload (ex: 'implante-dentario-campinas-fachada.jpg').
+8. ESTRAT\xC9GIA \xC9TICA DE AVALIA\xC7\xD5ES 5 ESTRELAS & RESPOSTAS COM SEO:
+   - Forne\xE7a script de solicita\xE7\xE3o p\xF3s-atendimento com link curto e QR Code.
+   - 5 Templates de resposta completos e profissionais (5 estrelas com palavra-chave, 4 estrelas construtivo, 3 estrelas neutro, 1-2 estrelas resolvendo a obje\xE7\xE3o com eleg\xE2ncia, e protocolo para avalia\xE7\xE3o suspeita de concorrente).
+   - IMPORTANTE: O Google rastreia os termos nas respostas dos propriet\xE1rios para melhorar o ranking! Insira termos locais nas respostas.
+9. CALEND\xC1RIO DE ATUALIZA\xC7\xD5ES (SINAIS DE FRESCOR DE 30 DIAS):
+   - 6 a 8 posts semanais com t\xEDtulos chamativos, corpos persuasivos e bot\xE3o de a\xE7\xE3o (CTA) oficial do Google ("Ligar agora", "Saiba mais", "Reservar").
+10. FAQ LOCAL DE ALTA CONVERS\xC3O (BUSCA POR VOZ E D\xDAVIDAS CRUCIAIS):
+    - 5 a 8 perguntas e respostas estrat\xE9gicas que quebram obje\xE7\xF5es antes do cliente ligar.
+11. CHECKLIST DE BLINDAGEM ANTI-SUSPENS\xC3O & VERIFICA\xC7\xC3O POR V\xCDDEO:
+    - Orienta\xE7\xF5es cir\xFArgicas para gravar o v\xEDdeo de verifica\xE7\xE3o exigido pelo Google (mostrar placa da rua, destrancar a porta do estabelecimento, mostrar equipamentos de trabalho e documentos comerciais).
+12. PLANO DE A\xC7\xC3O DE DOM\xCDNIO DO TOP 3 EM 90 DIAS:
+    - M\xEAs 1: Funda\xE7\xE3o, Verifica\xE7\xE3o e Cat\xE1logo.
+    - M\xEAs 2: Ativa\xE7\xE3o de Prova Social e Sinais de Frescor.
+    - M\xEAs 3: Consolida\xE7\xE3o do Top 3 e Monitoramento de Concorrentes.
+
+DADOS RECEBIDOS DO CLIENTE:
 ${JSON.stringify(data, null, 2)}
 
-Retorne um JSON com os campos correspondentes:
+Retorne OBRIGATORIAMENTE um JSON estruturado com os seguintes campos:
 - categories: { primaryCategory, primaryJustification, secondaryCategories, categoriesToAvoid, relevanceNotes }
 - addressStrategy: { serviceModel, storefrontVisible, serviceRadiusKm, coveredAreas, complianceNotes, verificationAdvice }
 - attributes: { accessibility, paymentMethods, amenities, planning, highlights }
 - seo: { primaryKeyword, secondaryKeywords, geoModifiers, napStandard: { name, address, phone }, searchIntents }
 - description: { fullDescription, first250CharsHook, charCount, complianceChecks: { noLinks, noProhibitedPromotions, noKeywordStuffing, noAllCaps } }
-- catalog: Array de itens
+- catalog: Array de itens { id, name, category, priceEstimate, isPriority, description }
 - photoChecklist: Array de itens com { id, category, title, recommendedSpec, seoFileName, isCrucialForVerification, description }
 - reviewStrategy: { reviewShortlinkTip, qrCodeUsageTip, responseTemplates, ethicalGuidelines }
 - editorialCalendar: Array de posts { day, type, topic, headline, body, ctaButton, photoGuidance }
@@ -307,10 +334,10 @@ async function auditSiteWithGemini(request) {
   const ai = getGeminiClient();
   if (!ai) return null;
   const liveScrape = await scrapeSiteHtmlPreview(request.url);
-  const prompt = `Voc\xEA \xE9 o World-Class Digital Experience Engine e Engenheiro Chefe em Auditoria de Sites e Landing Pages do Master Site Prompt Studio.
-Sua base normativa OBRIGAT\xD3RIA E SUPREMA \xE9 o MASTER SITE PROMPT 7.0 \u2014 WORLD-CLASS DIGITAL EXPERIENCE ENGINE (Sistema Supremo de Cria\xE7\xE3o de Sites, Landing Pages, Experi\xEAncias Premium, SEO e Convers\xE3o com 56 Diretrizes Inegoci\xE1veis).
+  const prompt = `Voc\xEA \xE9 o Auditor Independente e Engenheiro Chefe de Reengenharia Digital do MASTER SITE ENGINE 10.0 (QUALITY CONTROL, PERFORMANCE AUDIT & REENGINEERING SYSTEM).
+Sua base normativa OBRIGAT\xD3RIA E SUPREMA \xE9 o MASTER SITE ENGINE 10.0.
 
-O usu\xE1rio forneceu a seguinte URL de site de cliente ou concorrente para auditoria completa e gera\xE7\xE3o de melhorias superiores:
+O usu\xE1rio forneceu a seguinte URL para auditoria completa e gera\xE7\xE3o do MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O:
 URL: "${request.url}"
 Nicho / Segmento: "${request.niche || "Auto-detectar pelo link e conte\xFAdo"}"
 Objetivo: "${request.targetObjective || "Convers\xE3o de Leads e Agendamentos"}"
@@ -331,60 +358,32 @@ ${liveScrape ? `DADOS RASTREADOS DIRETAMENTE DO SITE (AO VIVO):
 EXECUTE A AUDITORIA E RETORNE UM JSON V\xC1LIDO contendo:
 1. "domain": nome do dom\xEDnio limpo (ex: "clinicaodonto.com.br")
 2. "primaryNicheDetected": nicho identificado
-3. "overallScore": n\xFAmero de 0 a 100 avaliando a conformidade com o Master Prompt 2.1
-4. "scoreLabel": r\xF3tulo do desempenho (ex: "Amador com Perda Cr\xEDtica de Leads", "M\xE9dio com Gargalos Visuais", "Padr\xE3o Ouro")
-5. "executiveSummary": resumo executivo de 3-4 frases em tom de autoridade consultiva
-6. "ownerInfo": objeto com os dados extra\xEDdos do propriet\xE1rio e empresa:
-   {
-     "businessName": "Nome da Empresa ou Cl\xEDnica",
-     "ownerOrLeaderName": "Nome do Fundador, M\xE9dico, Advogado ou Propriet\xE1rio",
-     "roleOrCredential": "Cargo e Registro Profissional (ex: CRM, CRO, OAB, Especialista)",
-     "whatsapp": "N\xFAmero com DDD e m\xE1scara (ex: (11) 98765-4321)",
-     "phone": "Telefone fixo ou comercial",
-     "email": "E-mail de contato corporativo",
-     "fullAddress": "Endere\xE7o f\xEDsico completo se houver ou regi\xE3o atendida",
-     "cityState": "Cidade / Estado",
-     "cnpj": "CNPJ se detectado ou 'Sob consulta'",
-     "instagram": "@perfil ou link",
-     "facebook": "Link ou N/A",
-     "linkedin": "Link ou N/A",
-     "bioOrAboutSummary": "Resumo profissional de autoridade sobre o propriet\xE1rio/empresa"
-   }
-7. "extractedImages": array com os principais ativos visuais detectados ou recomendados para o novo site:
-   [
-     {
-       "id": "img_1",
-       "url": "URL direta da imagem rastreada ou imagem de alta resolu\xE7\xE3o representativa",
-       "alt": "Texto alternativo descritivo e otimizado para SEO",
-       "category": "logo" | "hero" | "team" | "services" | "facility" | "other",
-       "label": "R\xF3tulo explicativo (ex: 'Logotipo Oficial da Marca', 'Banner Hero da P\xE1gina', 'Foto do Respons\xE1vel T\xE9cnico')",
-       "suggestedSection": "Se\xE7\xE3o alvo recomendada (ex: 'Header & Navbar', 'Primeira Dobra (Hero)', 'Sobre o Especialista')",
-       "isReal": true
-     }
-   ]
-8. "criticalBottlenecks": array de 4 a 6 frases pontuando os maiores gargalos do site atual
-9. "corePillars": objeto com as notas (0-100), status ('critical'|'warning'|'good'|'optimal') e recomenda\xE7\xF5es para:
-   - "uvpAndPositioning": Se\xE7\xE3o 3 (UVP em 4s)
-   - "luxuryDigitalStandard": Se\xE7\xE3o 4 (Hierarquia 60-30-10)
-   - "conversionAndFunnel": Se\xE7\xE3o 13 (CTAs e fluxo)
-   - "astroStackAndPerformance": Se\xE7\xE3o 15 e 17 (Astro-First, Core Web Vitals)
-   - "persuasiveCopywriting": Se\xE7\xE3o 12 (Prova social e quebra de obje\xE7\xF5es)
-   - "accessibilityAndColor": Se\xE7\xE3o 5 (WCAG e contraste)
-   - "onPageSeo": Se\xE7\xE3o 18 (SEO on-page)
-10. "recommendedImprovements": array de 6 objetos com melhorias concretas e reescritas no padr\xE3o do Master Prompt:
-    [
-      {
-        "id": "imp_1",
-        "title": "Reformula\xE7\xE3o da UVP e Hero Section",
-        "category": "uvp",
-        "impact": "very_high",
-        "masterPromptReference": "Se\xE7\xE3o 3 \u2014 Posicionamento Comercial & UVP",
-        "currentIssue": "...",
-        "improvedProposal": "...",
-        "copyableContent": "..."
-      }
-    ]
-11. "generatedNewPromptPreview": string com a descri\xE7\xE3o do novo prompt ideal para reconstruir esse site no Studio
+3. "overallScore": n\xFAmero de 0 a 100 calculado pela soma ponderada oficial dos 8 pilares:
+   - Design e identidade visual (20%)
+   - SEO e posicionamento org\xE2nico (20%)
+   - Performance e velocidade (15%)
+   - Convers\xE3o e estrat\xE9gia comercial (15%)
+   - UX, navega\xE7\xE3o e responsividade (10%)
+   - Acessibilidade (8%)
+   - Seguran\xE7a e conformidade legal (7%)
+   - Qualidade t\xE9cnica e c\xF3digo (5%)
+4. "scoreLabel": classifica\xE7\xE3o oficial (95-100: "Excel\xEAncia Internacional", 90-94: "Excelente", 80-89: "Muito Bom", 70-79: "Regular", 50-69: "Insatisfat\xF3rio", 0-49: "Cr\xEDtico")
+5. "approvalStatus": "APROVADO" (>=90 e sem bloqueio), "APROVADO COM MELHORIAS" (80-89), "EXIGE CORRE\xC7\xD5ES" (70-79), ou "REPROVADO" (<70 ou com bloqueio P0)
+6. "executiveSummary": resumo executivo rigoroso de 3-4 frases em tom de auditor independente
+7. "ownerInfo": objeto com dados extra\xEDdos { businessName, ownerOrLeaderName, roleOrCredential, whatsapp, phone, email, fullAddress, cityState, cnpj, instagram, bioOrAboutSummary }
+8. "extractedImages": array com os ativos visuais reais detectados ou sugeridos para o novo projeto
+9. "criticalBlockers": array com bloqueadores cr\xEDticos encontrados (ex: formul\xE1rio quebrado, lentid\xE3o extrema mobile, aus\xEAncia de UVP, promessas falsas) com { id, title, evidence, impact, correction, priority: 'P0'|'P1' }
+10. "categories10": objeto com as 8 categorias oficiais do Master Site Engine 10.0 contendo { name, score, weight, status, description, masterPromptRule, currentFlaws, recommendations } para:
+    - design (peso 20)
+    - seo (peso 20)
+    - performance (peso 15)
+    - conversion (peso 15)
+    - uxResponsiveness (peso 10)
+    - accessibility (peso 8)
+    - securityCompliance (peso 7)
+    - technicalQuality (peso 5)
+11. "recommendedImprovements": array de 6 objetos com a\xE7\xF5es de melhoria concretas prontas para copiar
+12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O & REENGENHARIA 10.0 autossuficiente e completo para colar em ferramentas com IA (Lovable, Bolt, Cursor ou Studio).
 `;
   const modelsToTry = ["gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
@@ -413,7 +412,7 @@ async function generatePitchWithGemini(request) {
 O usu\xE1rio \xE9 um desenvolvedor/ag\xEAncia de sites de elite que utiliza a plataforma Master Site Prompt Studio.
 Seus produtos s\xE3o \xFAnicos e diferenciados:
 1. SEO NOTA 100: Criados com arquitetura t\xE9cnica sem\xE2ntica para ranquear no topo da 1\xAA p\xE1gina do Google organicamente (Schema.org, Lighthouse 98-100, Core Web Vitals <1.2s), para o cliente n\xE3o ficar ref\xE9m de pagar an\xFAncios o tempo todo.
-2. DESIGN QUE ENCANTA: Projetos desenhados para deixar os clientes fascinados e encantados \xE0 primeira vista (Master Prompt 7.0), transmitindo autoridade imediata e distanciando totalmente de amadores.
+2. DESIGN QUE ENCANTA: Projetos desenhados para deixar os clientes fascinados e encantados \xE0 primeira vista (Master Site Engine 9.0), transmitindo autoridade imediata e distanciando totalmente de amadores.
 3. A DOBRADINHA IMBAT\xCDVEL (Google Meu Neg\xF3cio + Site Completo): O Google Meu Neg\xF3cio atrai a demanda de busca local no Google Maps ("perto de mim"). O site encanta com autoridade e fecha o contrato com bot\xE3o de WhatsApp. Ter s\xF3 o GMN perde 65% das vendas porque o cliente busca o site para checar credibilidade antes de ligar. Ter s\xF3 o site sem GMN perde toda a busca geolocalizada da cidade. Juntos, dominam tudo!
 4. CONVERS\xC3O DIRETA PARA WHATSAPP: Bot\xF5es e CTAs posicionados estrategicamente para transformar visitantes em dinheiro no caixa.
 
@@ -560,7 +559,7 @@ Contexto do cliente:
 
 Diferenciais da nossa oferta para usar como argumento:
 1. SEO Nota 100 no Google (ranqueamento org\xE2nico real, sem ficar ref\xE9m de pagar an\xFAncios para sempre).
-2. Design encantador de alto luxo (Master Prompt 7.0) que passa credibilidade instant\xE2nea.
+2. Design encantador de alto luxo (Master Site Engine 9.0) que passa credibilidade instant\xE2nea.
 3. Sinergia Google Meu Neg\xF3cio + Site: atrai no Maps e fecha no site via WhatsApp.
 4. Matem\xE1tica de ROI: 1 ou 2 clientes a mais no m\xEAs pagam 100% do projeto.
 5. O custo de n\xE3o fazer: perder clientes todos os dias para os concorrentes que est\xE3o no topo do Google.

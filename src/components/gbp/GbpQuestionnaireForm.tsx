@@ -30,7 +30,8 @@ import {
   GbpPrimaryObjective 
 } from '../../types/gbpTypes';
 import { gbpDatabase } from '../../services/gbpDatabase';
-import { analyzeGbpQuestionnaire, parseGbpRawTextHeuristic } from '../../services/gbpEngine';
+import { apiService } from '../../services/apiService';
+import { parseGbpRawTextHeuristic } from '../../services/gbpEngine';
 import { ALL_33_QUESTIONNAIRES, QuestionnaireTemplate, QUESTIONNAIRE_CATEGORIES } from '../../data/questionnaires';
 import { getGbpNichePackage, GBP_33_NICHOS_SEO_PACKAGES } from '../../data/gbp33NichosData';
 import { copyToClipboard } from '../../utils/clipboard';
@@ -164,8 +165,8 @@ export const GbpQuestionnaireForm: React.FC<GbpQuestionnaireFormProps> = ({
     onNotify('Processando Questionário', 'Extraindo dados e mapeando 4+ palavras-chave em alta no Google...', 'info');
 
     try {
-      // Parse heuristic with full 33-niche support
-      const parsed = parseGbpRawTextHeuristic(pastedQuestionnaire);
+      // Analyze questionnaire via apiService (AI with deterministic heuristic base)
+      const { data: parsed } = await apiService.analyzeGbpQuestionnaire(pastedQuestionnaire);
       const nichePkg = getGbpNichePackage(selectedNicheId || parsed.primaryNiche || 'clinica_estetica');
 
       const clientCity = parsed.city || 'São Paulo';
@@ -328,10 +329,10 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
               </span>
             </div>
             <h2 className="text-base sm:text-xl font-extrabold text-white tracking-tight mt-1.5 break-words">
-              Construtor de Perfil Estratégico com os 33 Nichos
+              Construtor de Perfil Estratégico para Ranquear no Topo do Google (33 Nichos)
             </h2>
             <p className="text-xs text-slate-400 mt-1 max-w-2xl break-words">
-              Cole o questionário respondido pelo seu cliente ou selecione um dos 33 nichos. A ferramenta injeta as <strong>4+ palavras-chave em alta no Google</strong> e gera tudo 100% pronto para copiar e colar.
+              Perguntas rigorosamente focadas nos fatores que o Google Maps prioriza: <strong>Categoria Primária exata</strong>, <strong>Bairros de Maior Ticket</strong>, <strong>Palavras-chave em alta</strong> e <strong>Catálogo lucrativo</strong>. Monte a estratégia perfeita para o perfil ranquear na parte de cima do Google!
             </p>
           </div>
 

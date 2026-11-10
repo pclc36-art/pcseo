@@ -246,17 +246,20 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-base sm:text-xl font-extrabold text-white tracking-tight">
-                  Auditor de Sites pelo Prompt Mestre
+                  Auditor de Sites — Master Site Engine 10.0
                 </h1>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/40 shrink-0">
-                  {activeMaster.version || 'v7.0'} WORLD-CLASS
+                  ENGINE 10.0 AUDIT
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/40 shrink-0">
-                  56 DIRETRIZES
+                  8 CATEGORIAS PONDERADAS
+                </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/40 shrink-0">
+                  REENGENHARIA DIGITAL
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1 break-words">
-                Cole o link de qualquer site ou landing page para diagnosticar seu desempenho real contra as 56 diretrizes do seu <strong>Master Prompt 7.0 (World-Class Digital Experience Engine)</strong> e receber melhorias estratégicas prontas para copiar.
+                Sistema integrado de auditoria técnica, controle de qualidade (8 categorias ponderadas com pesos oficiais), identificação de bloqueios críticos e geração do <strong>Mega Prompt Definitivo de Recriação & Reengenharia 10.0</strong> para ferramentas com IA.
               </p>
             </div>
           </div>
@@ -413,29 +416,52 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
                 </p>
               </div>
 
-              {/* Overall Score Badge */}
+              {/* Overall Score Badge with Master Site Engine 10.0 Classification */}
               <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 shrink-0 self-start md:self-auto">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-850 flex flex-col items-center justify-center border border-slate-700">
-                  <span className={`text-xl font-extrabold tracking-tight ${
-                    activeReport.overallScore >= 75 ? 'text-emerald-400' : activeReport.overallScore >= 50 ? 'text-amber-400' : 'text-rose-400'
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-850 flex flex-col items-center justify-center border border-slate-700">
+                  <span className={`text-2xl font-black tracking-tight ${
+                    activeReport.overallScore >= 90 ? 'text-emerald-400' : activeReport.overallScore >= 80 ? 'text-teal-400' : activeReport.overallScore >= 70 ? 'text-amber-400' : 'text-rose-400'
                   }`}>
                     {activeReport.overallScore}
                   </span>
                   <span className="text-[9px] text-slate-400 font-bold uppercase">de 100</span>
                 </div>
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-white block">Conformidade Prompt Mestre</span>
-                  <span className={`text-[11px] font-semibold block ${
-                    activeReport.overallScore >= 75 ? 'text-emerald-400' : activeReport.overallScore >= 50 ? 'text-amber-400' : 'text-rose-400'
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-300 block">Master Site Engine 10.0</span>
+                  <span className={`text-xs font-extrabold px-2 py-0.5 rounded-md inline-block ${
+                    activeReport.overallScore >= 90 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                    activeReport.overallScore >= 80 ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' :
+                    activeReport.overallScore >= 70 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                    'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                   }`}>
-                    {activeReport.scoreLabel}
+                    {activeReport.scoreLabel || (activeReport.overallScore >= 80 ? 'Muito Bom' : 'Exige Correções')}
                   </span>
+                  <div className="text-[10px] font-semibold text-slate-400">
+                    Status: <strong className={activeReport.approvalStatus === 'APROVADO' ? 'text-emerald-400' : activeReport.approvalStatus === 'APROVADO COM MELHORIAS' ? 'text-teal-400' : activeReport.approvalStatus === 'EXIGE CORREÇÕES' ? 'text-amber-400' : 'text-rose-400'}>
+                      {activeReport.approvalStatus || (activeReport.overallScore >= 80 ? 'APROVADO COM MELHORIAS' : 'EXIGE CORREÇÕES')}
+                    </strong>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Quick Action Bar */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+              {/* Copy Mega Prompt 10.0 */}
+              <button
+                type="button"
+                onClick={() => copyToClipboard(activeReport.reengineeringMegaPrompt || activeReport.generatedNewPromptPreview, 'mega_prompt_10', 'Mega Prompt de Recriação & Reengenharia 10.0')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+                  isCopied('mega_prompt_10')
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white shadow-cyan-500/20'
+                }`}
+                title="Copiar o Mega Prompt Definitivo de Recriação pronto para colar no Lovable, Bolt, Cursor ou Studio"
+              >
+                {isCopied('mega_prompt_10') ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Sparkles className="w-3.5 h-3.5 shrink-0" />}
+                <span>{isCopied('mega_prompt_10') ? '✓ Mega Prompt 10.0 Copiado!' : '⚡ Copiar Mega Prompt de Recriação 10.0'}</span>
+              </button>
+
               {/* Copy Full Report */}
               <button
                 type="button"
@@ -443,11 +469,11 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
                   isCopied('full_report')
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white shadow-emerald-500/20'
+                    : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700'
                 }`}
               >
                 {isCopied('full_report') ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
-                <span>{isCopied('full_report') ? '✓ Relatório Copiado!' : '📋 Copiar Relatório para o Cliente'}</span>
+                <span>{isCopied('full_report') ? '✓ Relatório Copiado!' : '📋 Copiar Relatório Completo'}</span>
               </button>
 
               {/* Transform into New Project */}
@@ -860,34 +886,36 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
             </div>
           )}
 
-          {/* Pillars Scores Grid */}
+          {/* 8 Official Categories of Master Site Engine 10.0 (Pesos Oficiais: 100%) */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 w-full min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3 w-full min-w-0">
               <div>
                 <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
                   <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-                  Avaliação dos 7 Pilares Técnicos do Master Prompt 7.0 (World-Class Engine)
+                  Avaliação das 8 Categorias Ponderadas — Master Site Engine 10.0 (100%)
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Cada pilar reflete os critérios das 56 diretrizes do seu Master Prompt 7.0 para sites e landing pages de padrão internacional.
+                  Pontuação oficial calculada pela soma ponderada dos 8 pilares técnicos e estratégicos inegociáveis.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full min-w-0">
-              {Object.entries(activeReport.corePillars).map(([key, pilar]) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full min-w-0">
+              {Object.entries(activeReport.categories10 || activeReport.corePillars).map(([key, pilar]) => (
                 <div
                   key={key}
                   className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-cyan-500/40 transition-colors flex flex-col justify-between space-y-3 min-w-0"
                 >
                   <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                        {pilar.masterPromptRule.split('—')[0]}
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-extrabold text-cyan-400 uppercase tracking-wider truncate">
+                        {pilar.weight ? `Peso: ${pilar.weight}%` : pilar.masterPromptRule?.split('—')[0]}
                       </span>
-                      <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
-                        pilar.score >= 70
+                      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                        pilar.score >= 80
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : pilar.score >= 70
+                          ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
                           : pilar.score >= 50
                           ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                           : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -904,7 +932,7 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                     <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          pilar.score >= 70 ? 'bg-emerald-400' : pilar.score >= 50 ? 'bg-amber-400' : 'bg-rose-500'
+                          pilar.score >= 80 ? 'bg-emerald-400' : pilar.score >= 70 ? 'bg-teal-400' : pilar.score >= 50 ? 'bg-amber-400' : 'bg-rose-500'
                         }`}
                         style={{ width: `${pilar.score}%` }}
                       ></div>
@@ -916,15 +944,53 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                   </div>
 
                   <div className="pt-2 border-t border-slate-900 space-y-1 text-[11px]">
-                    <span className="text-rose-400 font-bold block">Gargalo detectado:</span>
+                    <span className="text-rose-400 font-bold block">Gargalo identificado:</span>
                     <p className="text-slate-300 italic leading-snug break-words">
-                      "{pilar.currentFlaws[0]}"
+                      "{pilar.currentFlaws?.[0] || 'Necessidade de adequação técnica ao padrão 10.0.'}"
                     </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* PARTE 2: MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 */}
+          {activeReport.reengineeringMegaPrompt && (
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-indigo-500/40 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 w-full min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-500/20 pb-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300">
+                      <Sparkles className="w-4 h-4" />
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-white">
+                      Parte 2: Mega Prompt de Recriação & Reengenharia 10.0 (Pronto para Uso)
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Prompt autossuficiente e completo gerado pelo auditor para colar diretamente no <strong>Lovable, Bolt, Cursor ou Studio</strong>.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(activeReport.reengineeringMegaPrompt, 'mega_prompt_body', 'Mega Prompt de Recriação 10.0')}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0 ${
+                    isCopied('mega_prompt_body')
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
+                  }`}
+                >
+                  {isCopied('mega_prompt_body') ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  <span>{isCopied('mega_prompt_body') ? '✓ Mega Prompt Copiado!' : 'Copiar Mega Prompt Completo'}</span>
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-indigo-900/40 text-slate-200 text-xs font-mono leading-relaxed select-all overflow-x-auto whitespace-pre-wrap break-words shadow-inner max-h-96">
+                {activeReport.reengineeringMegaPrompt}
+              </div>
+            </div>
+          )}
 
           {/* Critical Bottlenecks Section */}
           <div className="bg-slate-900 border border-rose-500/40 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3 w-full min-w-0">

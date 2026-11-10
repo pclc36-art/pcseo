@@ -140,12 +140,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('sales_closer')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-950/80 via-slate-900 to-indigo-950/80 hover:bg-rose-900/80 border border-rose-500/40 text-rose-200 font-semibold text-sm transition-all shadow-sm active:scale-95 cursor-pointer"
+              onClick={() => setActiveTab('media_optimizer' as any)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-cyan-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-200 font-semibold text-sm transition-all shadow-sm active:scale-95 cursor-pointer"
             >
-              <Flame className="w-4 h-4 text-rose-400" />
-              <span>Fechador de Vendas</span>
-              <span className="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded font-bold">CONVERSÃO</span>
+              <Zap className="w-4 h-4 text-emerald-400" />
+              <span>Otimizador de Mídia</span>
+              <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold">WebP & Vídeos</span>
             </button>
 
             <button
@@ -196,39 +196,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Fechador de Vendas & Objeções Highlight Banner */}
-      <div 
-        onClick={() => setActiveTab('sales_closer')}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-950/70 via-indigo-950/60 to-slate-900 border border-rose-500/40 p-5 sm:p-6 cursor-pointer hover:border-rose-400/80 transition-all shadow-xl group"
-      >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300 group-hover:scale-105 transition-transform flex-shrink-0">
-              <Flame className="w-6 h-6 text-rose-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-rose-200 transition-colors">
-                  Fechador de Vendas & Contra-Ataque de Objeções
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                  NOVO MÓDULO
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                Crie scripts irresistíveis com o nome do cliente e nicho destacando o <strong className="text-cyan-300">SEO Nota 100</strong>, o <strong className="text-indigo-300">Design que Encanta</strong> e a <strong className="text-emerald-300">Dobradinha Google Meu Negócio + Site</strong>. Cole o que o cliente respondeu e feche o contrato!
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 group-hover:translate-x-1 transition-all flex-shrink-0 self-end sm:self-auto">
-            <span>Abrir Fechador de Vendas</span>
-            <span>→</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Featured Modules Spotlight: Site Auditor, Questionnaires, GBP Pro, Admin */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Featured Modules Spotlight: Site Auditor, Questionnaires, GBP Pro, Media Optimizer, Admin */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Module 1: Site Auditor by URL */}
         <div 
           onClick={() => setActiveTab('site_auditor')}
@@ -237,14 +206,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between mb-3">
             <span className="text-2xl">🌐</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-              Prompt Mestre 7.0 World-Class
+              Master Site Engine 9.0
             </span>
           </div>
           <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
             Auditor de Sites por Link
           </h3>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            Cole a URL de qualquer site para diagnóstico baseado nas 56 diretrizes do Prompt Mestre 7.0 com melhorias prontas para copiar.
+            Diagnóstico baseado nas 63 Diretrizes do Master Site Engine 9.0 com melhorias prontas para copiar.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-cyan-400 group-hover:translate-x-1 transition-transform">
             <span>Auditar Site Agora</span>
@@ -252,7 +221,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Module 2: Super Questionnaires */}
+        {/* Module 2: 33 Nichos GBP Questionnaires */}
         <div 
           onClick={() => setActiveTab('questionnaires')}
           className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/50 via-slate-900 to-slate-950 border border-indigo-500/30 hover:border-indigo-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
@@ -260,17 +229,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between mb-3">
             <span className="text-2xl">📝</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-              33 Nichos • 1.048 Perguntas
+              33 Nichos GBP
             </span>
           </div>
           <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
-            Super Questionários por Nicho
+            33 Questionários GBP
           </h3>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            33 questionários completos divididos em Saúde, Serviços, Gastronomia, Entretenimento, Varejo e Outros.
+            Perguntas estratégicas otimizadas para ranquear no Top 3 do Google Maps nos 33 nichos de mercado.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-indigo-400 group-hover:translate-x-1 transition-transform">
-            <span>Acessar Questionários</span>
+            <span>Questionários GBP</span>
             <span>→</span>
           </div>
         </div>
@@ -293,12 +262,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Auditoria por link do Google Maps com o que modificar, o que incluir e otimização para 100/100.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
-            <span>Abrir Módulo GBP Pro</span>
+            <span>Módulo GBP Pro</span>
             <span>→</span>
           </div>
         </div>
 
-        {/* Module 4: Admin Area */}
+        {/* Module 4: Media Optimizer (Images & Videos for PageSpeed 100) */}
+        <div 
+          onClick={() => setActiveTab('media_optimizer' as any)}
+          className="p-5 rounded-2xl bg-gradient-to-br from-teal-950/60 via-slate-900 to-slate-950 border border-teal-500/40 hover:border-teal-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">⚡</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">
+              PageSpeed 100
+            </span>
+          </div>
+          <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition-colors">
+            Otimizador de Mídias
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            Converta imagens em WebP leve (&lt;150KB/&lt;80KB), compare antes/depois e gere vídeos ultrarrápidos para LP.
+          </p>
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-teal-400 group-hover:translate-x-1 transition-transform">
+            <span>Otimizar Mídias</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        {/* Module 5: Admin Area */}
         <div 
           onClick={() => setActiveTab('admin')}
           className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
@@ -316,7 +308,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Primeiro cadastro de Administrador, login seguro, recuperação de senha e backups completos.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-amber-400 group-hover:translate-x-1 transition-transform">
-            <span>Acessar Painel Admin</span>
+            <span>Painel Admin</span>
             <span>→</span>
           </div>
         </div>

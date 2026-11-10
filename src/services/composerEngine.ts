@@ -302,16 +302,16 @@ ${contradictionSection}
 ${architectureSection}
 
 ================================================================================
-2. CONSTITUIÇÃO TÉCNICA E ARQUITETURAL DO MASTER PROMPT 7.0 (INTEGRAL E INEGOCIÁVEL)
+2. CONSTITUIÇÃO TÉCNICA E ARQUITETURAL DO MASTER SITE ENGINE 9.0 (INTEGRAL E INEGOCIÁVEL)
 ================================================================================
 AVISO MANDATÓRIO DE EXECUÇÃO:
-Você deve ler, absorver e aplicar com estrito rigor todas as 56 DIRETRIZES INEGOCIÁVEIS
-organizadas nas 10 PARTES do Master Site Prompt 7.0 a seguir.
+Você deve ler, absorver e aplicar com estrito rigor todas as 63 DIRETRIZES INEGOCIÁVEIS
+do Master Site Engine 9.0 (World-Class Digital Experience System) a seguir.
 Cada dado do cliente mapeado na Seção 1 deve ser materializado em conformidade absoluta
 com as normas de Direção de Arte World-Class, Tipografia Display Editorial, Stack Astro-First,
-Motion Design 60fps, SEO Semântico Avançado com Schema.org LocalBusiness, CRO de Alta
-Conversão e Acessibilidade WCAG 2.2 AA. É terminantemente proibido resumir, omitir código
-ou utilizar componentes genéricos de template:
+Motion Design com Propósito, SEO Semântico & GEO Avançado, Dados Estruturados Schema.org,
+CRO de Alta Conversão, Acessibilidade WCAG e Segurança/LGPD. É terminantemente proibido resumir,
+omitir código, criar pseudocódigo ou utilizar templates genéricos:
 
 ${masterPromptContent}
 

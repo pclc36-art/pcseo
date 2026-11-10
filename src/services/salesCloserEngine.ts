@@ -108,7 +108,7 @@ Especialista em Ecossistemas Digitais & SEO`;
         id: 'design_encanta',
         title: 'Design que Encanta e Cativa à Primeira Vista',
         headline: 'Estética magnética que separa você de amadores e eleva o valor percebido',
-        explanation: 'Construído sob o rigor do Master Prompt 7.0 World-Class: tipografia precisa, contrastes acessíveis, microinterações fluidas e layout que transmite riqueza, seriedade e confiabilidade instantânea.',
+        explanation: 'Construído sob o rigor do Master Site Engine 9.0 World-Class: tipografia precisa, contrastes acessíveis, microinterações fluidas e layout que transmite riqueza, seriedade e confiabilidade instantânea.',
         whyItMatters: 'O cliente decide em 3 segundos se confia ou fecha a aba. Um design encantador valida o seu preço mais alto e faz o cliente sentir que está contratando o melhor da categoria.'
       },
       {
@@ -308,7 +308,7 @@ O motivo do seu site anterior não ter dado resultado é muito simples: **um sit
 Nosso método funciona justamente porque resolve isso na raiz:
 1. Nós não fazemos apenas um "layout": fazemos a **engenharia técnica de SEO** para o Google indexar e recomendar a sua página.
 2. Integramos com o **Google Meu Negócio Nota 100**, que é de onde vem a maior parte do tráfego local direto pro WhatsApp.
-3. O design é desenhado com o **Master Prompt 7.0**, focado 100% em conversão e encantamento.
+3. O design é desenhado com o **Master Site Engine 9.0**, focado 100% em conversão e encantamento.
 
 Dessa vez você não terá um "enfeite digital", mas sim um canal ativo de aquisição de clientes. Vamos fazer diferente e do jeito certo dessa vez?`,
       audioScript: `"Nossa ${client}, você não faz ideia de quantos clientes chegam até mim com essa mesma frustração! O cara pagou por um site, colocou no ar e não tocou o telefone nenhuma vez. E sabe por que isso acontece? Porque a pessoa que fez não entende nada de SEO do Google e nem de jornada de compra. Fazer site bonito qualquer um faz; colocar ele nos primeiros lugares do Google com velocidade de menos de 1 segundo e botão de WhatsApp que converte, isso é engenharia. O que a gente faz é completamente diferente do que você viu no passado. Me dá uma chance de te mostrar uma demonstração técnica pra você ver com seus próprios olhos a diferença?"`,

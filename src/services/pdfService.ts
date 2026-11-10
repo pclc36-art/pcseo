@@ -33,7 +33,7 @@ export function exportProjectAndPromptPdf(project: Project): void {
     doc.setFontSize(8);
     doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
     doc.text(
-      `Master Site Prompt Studio • Projeto: ${project.name} • Prompt Mestre 7.0 World-Class`,
+      `Master Site Prompt Studio • Projeto: ${project.name} • Master Site Engine 9.0 World-Class`,
       margin,
       10
     );
@@ -49,11 +49,11 @@ export function exportProjectAndPromptPdf(project: Project): void {
 
   // Badge
   doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.roundedRect(margin + 5, cursorY + 5, 68, 5.5, 1.5, 1.5, 'F');
+  doc.roundedRect(margin + 5, cursorY + 5, 78, 5.5, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
-  doc.text('MASTER SITE PROMPT 7.0 • WORLD-CLASS', margin + 7, cursorY + 9);
+  doc.text('MASTER SITE ENGINE 9.0 • WORLD-CLASS', margin + 7, cursorY + 9);
 
   // Main Title
   doc.setFont('helvetica', 'bold');
@@ -74,7 +74,7 @@ export function exportProjectAndPromptPdf(project: Project): void {
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
   doc.text(
-    `Framework: ${project.preferredFramework || 'Astro-First'} • Hospedagem: ${project.hostingTarget || 'Hostinger'} • Versão: ${project.masterPromptVersionLabel || 'v7.0'}`,
+    `Framework: ${project.preferredFramework || 'Astro-First'} • Hospedagem: ${project.hostingTarget || 'Hostinger'} • Versão: ${project.masterPromptVersionLabel || 'v9.0'}`,
     margin + 5,
     cursorY + 33
   );
@@ -104,7 +104,7 @@ export function exportProjectAndPromptPdf(project: Project): void {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    doc.text('Relatório Executivo de Conformidade & CRO 7.0', margin + 28, cursorY + 10);
+    doc.text('Relatório Executivo de Conformidade & CRO 9.0', margin + 28, cursorY + 10);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
@@ -231,7 +231,7 @@ export function exportProjectAndPromptPdf(project: Project): void {
     doc.setFontSize(8);
     doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
     doc.text(
-      `Master Site Prompt Studio • Master Prompt 7.0 World-Class Engine`,
+      `Master Site Prompt Studio • Master Site Engine 9.0 World-Class System`,
       margin,
       pageHeight - 8
     );
@@ -246,6 +246,6 @@ export function exportProjectAndPromptPdf(project: Project): void {
   }
 
   // Download PDF
-  const safeFilename = `${project.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_prompt_mestre_7_0.pdf`;
+  const safeFilename = `${project.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_master_site_engine_9_0.pdf`;
   doc.save(safeFilename);
 }

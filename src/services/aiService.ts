@@ -1,5 +1,11 @@
 import { ProjectExtractedData, ProjectType } from '../types';
+import { GbpQuestionnaireData, GbpDossier, GbpAuditRequest, GbpAuditReport } from '../types/gbpTypes';
 import { parseQuestionnaireHeuristic } from './parserService';
+import { 
+  generateHeuristicDossier, 
+  auditGbpProfileHeuristic, 
+  parseGbpRawTextHeuristic 
+} from './gbpEngine';
 
 export interface HealthStatus {
   status: string;
@@ -95,3 +101,125 @@ export async function analyzeQuestionnaire(
 
   return { data: heuristicBase, source: 'heuristic' };
 }
+
+/**
+ * Generate a complete 13-stage Google Business Profile Dossier focused on Google Maps ranking performance
+ */
+export async function generateGbpDossier(
+  questionnaire: GbpQuestionnaireData
+): Promise<{ dossier: GbpDossier; source: 'gemini' | 'heuristic' }> {
+  const heuristicFallback = generateHeuristicDossier(questionnaire);
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 14000);
+    const res = await fetch('/api/gbp/generate-dossier', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questionnaire }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        const mergedDossier: GbpDossier = {
+          ...heuristicFallback,
+          ...json.data,
+          id: `dossier_${Date.now()}`,
+          businessName: questionnaire.businessName || heuristicFallback.businessName,
+          clientName: questionnaire.businessName || heuristicFallback.clientName,
+          updatedAt: new Date().toISOString(),
+          generatedBy: 'gemini',
+        };
+        return { dossier: mergedDossier, source: 'gemini' };
+      }
+    }
+  } catch (err) {
+    console.warn('[apiService] Falha na API Gemini para Dossiê GBP, usando motor heurístico local:', err);
+  }
+
+  return { dossier: heuristicFallback, source: 'heuristic' };
+}
+
+/**
+ * Parse raw questionnaire text using Gemini AI with heuristic fallback
+ */
+export async function analyzeGbpQuestionnaire(
+  rawText: string
+): Promise<{ data: Partial<GbpQuestionnaireData>; source: 'gemini' | 'heuristic' }> {
+  const heuristicBase = parseGbpRawTextHeuristic(rawText);
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch('/api/gbp/analyze-questionnaire', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return { data: { ...heuristicBase, ...json.data }, source: 'gemini' };
+      }
+    }
+  } catch (err) {
+    console.warn('[apiService] Falha ao analisar questionário com Gemini, usando heurística:', err);
+  }
+
+  return { data: heuristicBase, source: 'heuristic' };
+}
+
+/**
+ * Audit existing GBP profile or URL for Google Maps ranking compliance
+ */
+export async function auditGbpProfile(
+  request: GbpAuditRequest
+): Promise<{ report: GbpAuditReport; source: 'gemini' | 'heuristic' }> {
+  const heuristicReport = auditGbpProfileHeuristic(request);
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 14000);
+    const res = await fetch('/api/gbp/audit-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auditRequest: request }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        const fullReport: GbpAuditReport = {
+          ...heuristicReport,
+          ...json.data,
+          id: `audit_${Date.now()}`,
+          clientName: request.clientName || request.businessName,
+          businessName: request.businessName,
+          createdAt: new Date().toISOString(),
+        };
+        return { report: fullReport, source: 'gemini' };
+      }
+    }
+  } catch (err) {
+    console.warn('[apiService] Falha na auditoria de perfil via Gemini, usando heurística:', err);
+  }
+
+  return { report: heuristicReport, source: 'heuristic' };
+}
+
+// Unified apiService instance
+export const apiService = {
+  checkApiHealth,
+  analyzeQuestionnaire,
+  generateGbpDossier,
+  analyzeGbpQuestionnaire,
+  auditGbpProfile,
+};

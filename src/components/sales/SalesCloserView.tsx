@@ -44,6 +44,10 @@ export const SalesCloserView: React.FC<SalesCloserViewProps> = ({ onNotify, onBa
   const [activeTab, setActiveTab] = useState<'pitch' | 'objections'>('pitch');
 
   // Pitch Form State
+  const [clientQuestionnaireText, setClientQuestionnaireText] = useState('');
+  const [isQuestionnaireParsed, setIsQuestionnaireParsed] = useState(false);
+  const [showManualFields, setShowManualFields] = useState(false);
+
   const [clientName, setClientName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [niche, setNiche] = useState('Clínica Médica / Saúde');
@@ -97,24 +101,172 @@ export const SalesCloserView: React.FC<SalesCloserViewProps> = ({ onNotify, onBa
     onNotify('Download Concluído', `Arquivo ${filename} salvo no seu computador.`, 'info');
   };
 
+  // Parser: Auto-extract data from pasted client questionnaire
+  const processQuestionnaireText = (rawText: string, notifyUser = false) => {
+    if (!rawText.trim()) {
+      setIsQuestionnaireParsed(false);
+      return;
+    }
+
+    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+    const textLower = rawText.toLowerCase();
+
+    // 1. Client / Prospect Name
+    let foundClientName = '';
+    const clientNameMatch = rawText.match(/(?:nome do potencial cliente|nome do cliente|nome do prospecto|nome do responsável|contato|dr\.|dra\.|nome)[\s:]+([^\n\r,]+)/i);
+    if (clientNameMatch && clientNameMatch[1] && clientNameMatch[1].trim().length > 1 && !clientNameMatch[1].toLowerCase().includes('qual é') && !clientNameMatch[1].toLowerCase().includes('empresa') && !clientNameMatch[1].toLowerCase().includes('oficial')) {
+      foundClientName = clientNameMatch[1].replace(/^[-*•\s]+/, '').trim();
+    } else {
+      const greetingMatch = rawText.match(/(?:prezado\(a\)|olá|me chamo|meu nome é)\s+([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,30})/i);
+      if (greetingMatch && greetingMatch[1]) {
+        foundClientName = greetingMatch[1].trim();
+      }
+    }
+
+    // 2. Company Name
+    let foundCompanyName = '';
+    const companyMatch = rawText.match(/(?:nome comercial oficial|nome da empresa|empresa|clínica|consultório|escritório|razão social|marca|estabelecimento)[\s:]+([^\n\r]+)/i);
+    if (companyMatch && companyMatch[1] && companyMatch[1].trim().length > 1 && !companyMatch[1].toLowerCase().includes('oficial')) {
+      foundCompanyName = companyMatch[1].replace(/^[-*•\s]+/, '').trim();
+    }
+
+    // 3. Niche / Segment
+    let foundNiche = '';
+    if (textLower.includes('odonto') || textLower.includes('dentista') || textLower.includes('implante') || textLower.includes('alinhador')) {
+      foundNiche = 'Odontologia / Dentista';
+    } else if (textLower.includes('estétic') || textLower.includes('botox') || textLower.includes('harmonização') || textLower.includes('bioestimulador')) {
+      foundNiche = 'Estética & Beleza';
+    } else if (textLower.includes('médic') || textLower.includes('cardiolog') || textLower.includes('consultório médico') || textLower.includes('doutor')) {
+      foundNiche = 'Clínica Médica / Saúde';
+    } else if (textLower.includes('fisioterap') || textLower.includes('reabilitação') || textLower.includes('pilates')) {
+      foundNiche = 'Fisioterapia & Saúde';
+    } else if (textLower.includes('nutri') || textLower.includes('dieta') || textLower.includes('bioimpedância')) {
+      foundNiche = 'Nutrição / Nutricionista';
+    } else if (textLower.includes('psicolog') || textLower.includes('terapia') || textLower.includes('saúde mental')) {
+      foundNiche = 'Psicologia & Terapia';
+    } else if (textLower.includes('advocac') || textLower.includes('advogad') || textLower.includes('jurídic') || textLower.includes('oab')) {
+      foundNiche = 'Advocacia & Jurídico';
+    } else if (textLower.includes('arquitet') || textLower.includes('interiores') || textLower.includes('design de interiores')) {
+      foundNiche = 'Arquitetura & Interiores';
+    } else if (textLower.includes('construç') || textLower.includes('engenhar') || textLower.includes('reforma') || textLower.includes('obra')) {
+      foundNiche = 'Construção & Reformas';
+    } else if (textLower.includes('imobiliár') || textLower.includes('corretor') || textLower.includes('imóve')) {
+      foundNiche = 'Imobiliária / Corretores';
+    } else if (textLower.includes('contabil') || textLower.includes('contador') || textLower.includes('bpo')) {
+      foundNiche = 'Contabilidade / BPO';
+    } else if (textLower.includes('restaurante') || textLower.includes('bistrô') || textLower.includes('pizza') || textLower.includes('hambúrguer') || textLower.includes('café') || textLower.includes('gastronom')) {
+      foundNiche = 'Gastronomia & Restaurantes';
+    } else if (textLower.includes('academia') || textLower.includes('crossfit') || textLower.includes('fitness') || textLower.includes('musculação')) {
+      foundNiche = 'Academia / Fitness';
+    } else if (textLower.includes('pet shop') || textLower.includes('veterinár') || textLower.includes('banho e tosa')) {
+      foundNiche = 'Pet Shop / Veterinária';
+    } else if (textLower.includes('escola') || textLower.includes('curso') || textLower.includes('idioma') || textLower.includes('treinamento')) {
+      foundNiche = 'Educação / Escolas';
+    } else {
+      const nicheMatch = rawText.match(/(?:nicho|segmento|especialidade)[\s:]+([^\n\r]+)/i);
+      if (nicheMatch && nicheMatch[1]) {
+        foundNiche = nicheMatch[1].trim();
+      }
+    }
+
+    // 4. City / Region
+    let foundCity = '';
+    const cityMatch = rawText.match(/(?:cidade|região|município|localização|endereço)[\s:]+([A-Za-zÀ-ÖØ-öø-ÿ\s]+)(?:[-/,\s]+([A-Za-z]{2}))?/i);
+    if (cityMatch && cityMatch[1] && cityMatch[1].trim().length > 2) {
+      foundCity = `${cityMatch[1].trim()}${cityMatch[2] ? ` - ${cityMatch[2].trim().toUpperCase()}` : ''}`;
+    }
+
+    // 5. Current Status
+    let foundStatus: ClientCurrentStatus = 'has_instagram_only';
+    if (textLower.includes('não tem site') || textLower.includes('não possui site') || textLower.includes('sem site')) {
+      foundStatus = 'no_site_no_gmn';
+    } else if (textLower.includes('site antigo') || textLower.includes('site feio') || textLower.includes('site lento') || textLower.includes('site fraco')) {
+      foundStatus = 'has_bad_site';
+    } else if (textLower.includes('perfil google') || textLower.includes('já aparece no maps') || textLower.includes('meu negócio')) {
+      foundStatus = 'has_abandoned_gmn';
+    } else if (textLower.includes('instagram') || textLower.includes('redes sociais') || textLower.includes('insta')) {
+      foundStatus = 'has_instagram_only';
+    }
+
+    // 6. Extra details (extract key answers)
+    const keyLines = lines.filter((l) => /(?:serviço|procedimento|diferencial|produto|horário|whatsapp|preço|avaliaç|elogio|dúvida)/i.test(l));
+    const extractedExtra = keyLines.slice(0, 6).join(' \n');
+
+    if (foundClientName) setClientName(foundClientName);
+    if (foundCompanyName) setCompanyName(foundCompanyName);
+    if (foundNiche) setNiche(foundNiche);
+    if (foundCity) setCityOrRegion(foundCity);
+    if (foundStatus) setCurrentStatus(foundStatus);
+    if (extractedExtra) setExtraDetails(extractedExtra);
+
+    setIsQuestionnaireParsed(true);
+
+    if (notifyUser) {
+      onNotify(
+        'Questionário Processado!',
+        `Reconhecido: ${foundClientName || 'Cliente'} (${foundCompanyName || foundNiche || 'Empresa'}) em ${foundCity || 'sua região'}.`,
+        'success'
+      );
+    }
+  };
+
+  const handleLoadSampleQuestionnaire = () => {
+    const sample = `📋 QUESTIONÁRIO RESPONDIDO PELO CLIENTE
+Nome do Cliente: Dr. Fernando Vasconcelos
+Nome da Empresa: Vasconcelos Odontologia Estética & Implantes
+Nicho / Segmento: Odontologia / Dentista
+Cidade: Campinas - SP
+Endereço: Av. Barão de Itapura, 1200 - Guanabara
+WhatsApp: (19) 99876-5432
+Situação Atual: Hoje só tenho o Instagram com 4 mil seguidores e poucas indicações. Não tenho site e meu Google Meu Negócio está desatualizado.
+Serviços Principais:
+1. Implantes Dentários Guiados sem corte (R$ 2.500)
+2. Lentes de Contato em Porcelana (R$ 1.800 cada)
+3. Alinhadores Invisíveis Transparentes
+Diferenciais: Mais de 16 anos de formado, sedação consciente com médico anestesista para quem tem medo de dor, raio-X panorâmico no consultório e estacionamento privativo gratuito.
+Dúvidas frequentes dos pacientes: Medo de sentir dor na cirurgia de implante e quanto tempo dura o tratamento.`;
+
+    setClientQuestionnaireText(sample);
+    processQuestionnaireText(sample, true);
+  };
+
+  const handleClearQuestionnaire = () => {
+    setClientQuestionnaireText('');
+    setIsQuestionnaireParsed(false);
+    setClientName('');
+    setCompanyName('');
+    setExtraDetails('');
+    onNotify('Campos Limpos', 'Cole o questionário do cliente para começar.', 'info');
+  };
+
   // Generate Pitch
   const handleGeneratePitch = async () => {
-    if (!clientName.trim() && !companyName.trim()) {
-      onNotify('Atenção', 'Informe pelo menos o nome do potencial cliente ou da empresa.', 'warning');
+    // If questionnaire text was pasted but clientName/companyName is empty, run auto-extract first
+    let activeClient = clientName.trim();
+    let activeCompany = companyName.trim();
+
+    if (clientQuestionnaireText.trim() && (!activeClient || !activeCompany)) {
+      processQuestionnaireText(clientQuestionnaireText, false);
+      activeClient = clientName.trim() || 'Cliente Especial';
+      activeCompany = companyName.trim() || 'Sua Empresa';
+    }
+
+    if (!activeClient && !activeCompany && !clientQuestionnaireText.trim()) {
+      onNotify('Atenção', 'Cole o questionário respondido pelo cliente no espaço indicado para gerar o roteiro.', 'warning');
       return;
     }
 
     setIsGeneratingPitch(true);
     try {
       const request: SalesPitchRequest = {
-        clientName: clientName.trim() || 'Cliente Especial',
-        companyName: companyName.trim() || 'Sua Empresa',
-        niche: niche.trim(),
+        clientName: activeClient || 'Cliente Especial',
+        companyName: activeCompany || 'Sua Empresa',
+        niche: niche.trim() || 'Serviços Especializados',
         targetSolution,
         cityOrRegion: cityOrRegion.trim(),
         currentStatus,
         tone,
-        extraDetails: extraDetails.trim()
+        extraDetails: (extraDetails.trim() || clientQuestionnaireText.slice(0, 1000)).trim()
       };
 
       const result = await salesCloserEngine.generatePitch(request);
@@ -257,79 +409,112 @@ export const SalesCloserView: React.FC<SalesCloserViewProps> = ({ onNotify, onBa
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                    <Target className="w-4 h-4" />
+                    <FileText className="w-4 h-4" />
                   </div>
-                  <h2 className="text-base font-bold text-white">Dados do Potencial Cliente</h2>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Questionário Respondido do Cliente</h2>
+                    <p className="text-[11px] text-slate-400">Cole aqui as respostas do briefing ou WhatsApp</p>
+                  </div>
                 </div>
-                <span className="text-[11px] font-medium text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
-                  Personalização
+                <span className="text-[11px] font-semibold text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded">
+                  Extração Inteligente
                 </span>
               </div>
 
-              {/* Client Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <span>Nome do Potencial Cliente</span>
-                  <span className="text-cyan-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Ex: Dr. Marcelo, Maria, Carlos Construtor..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                />
-              </div>
-
-              {/* Company Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <span>Nome da Empresa / Estabelecimento</span>
-                </label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Ex: Clínica Sorriso & Estética, Silva Advocacia..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                />
-              </div>
-
-              {/* Niche with Quick Selection */}
+              {/* Paste Area */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300">Nicho / Segmento</label>
-                <input
-                  type="text"
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                  placeholder="Ex: Clínica Médica, Advocacia, E-commerce..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                />
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {popularNiches.slice(0, 6).map((item) => (
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <span>Espaço para Colar as Respostas do Cliente:</span>
+                    <span className="text-cyan-400">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
                     <button
-                      key={item}
                       type="button"
-                      onClick={() => setNiche(item)}
-                      className={`text-[11px] px-2 py-1 rounded-lg transition-colors ${
-                        niche === item
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold'
-                          : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/60'
-                      }`}
+                      onClick={handleLoadSampleQuestionnaire}
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
                     >
-                      {item.split(' / ')[0]}
+                      Exemplo
                     </button>
-                  ))}
+                    {clientQuestionnaireText && (
+                      <button
+                        type="button"
+                        onClick={handleClearQuestionnaire}
+                        className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  rows={9}
+                  value={clientQuestionnaireText}
+                  onChange={(e) => {
+                    setClientQuestionnaireText(e.target.value);
+                    processQuestionnaireText(e.target.value, false);
+                  }}
+                  onPaste={(e) => {
+                    const pasted = e.clipboardData.getData('text');
+                    setTimeout(() => processQuestionnaireText(pasted, true), 100);
+                  }}
+                  placeholder="Cole aqui as respostas do questionário que o cliente enviou pelo WhatsApp, e-mail ou briefing...&#10;&#10;Exemplo:&#10;Nome: Dr. Fernando&#10;Empresa: Clínica Vasconcelos&#10;Nicho: Odontologia / Implantes&#10;Cidade: Campinas - SP&#10;Situação: Só tem Instagram e poucas indicações&#10;Diferenciais: Sedação consciente e 16 anos de mercado"
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-white placeholder-slate-500 text-xs sm:text-sm font-mono leading-relaxed focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-y"
+                />
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Não precisa preencher campo por campo. O sistema extrai tudo!</span>
+                  {clientQuestionnaireText && (
+                    <button
+                      type="button"
+                      onClick={() => processQuestionnaireText(clientQuestionnaireText, true)}
+                      className="text-cyan-400 hover:underline font-semibold"
+                    >
+                      Reanalisar
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Target Solution Type */}
+              {/* Extraction Summary Badge Card */}
+              {isQuestionnaireParsed && (clientName || companyName || cityOrRegion) && (
+                <div className="bg-slate-950/80 border border-cyan-500/30 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-cyan-300">
+                    <span className="flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      Dados Identificados do Questionário:
+                    </span>
+                    <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Pronto para o script</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">👤 Prospecto</span>
+                      <strong className="text-white truncate block">{clientName || 'Cliente'}</strong>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">🏢 Empresa</span>
+                      <strong className="text-white truncate block">{companyName || 'Empresa'}</strong>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">🏷️ Nicho</span>
+                      <strong className="text-cyan-300 truncate block">{niche}</strong>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">📍 Local</span>
+                      <strong className="text-white truncate block">{cityOrRegion || 'Região'}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Target Solution Type Selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Solução Ofertada</label>
+                <label className="text-xs font-semibold text-slate-300">Solução a Ofertar no Script</label>
                 <select
                   value={targetSolution}
                   onChange={(e) => setTargetSolution(e.target.value as TargetSolutionType)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-cyan-500 transition-colors"
                 >
                   <option value="combo_pro">🏆 Combo Ouro: Google Meu Negócio 100/100 + Site Completo</option>
                   <option value="landing_page">⚡ Landing Page de Alta Conversão + SEO Local</option>
@@ -337,63 +522,113 @@ export const SalesCloserView: React.FC<SalesCloserViewProps> = ({ onNotify, onBa
                 </select>
               </div>
 
-              {/* City or Region */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Cidade / Região (Opcional)</label>
-                <input
-                  type="text"
-                  value={cityOrRegion}
-                  onChange={(e) => setCityOrRegion(e.target.value)}
-                  placeholder="Ex: Teresina - PI, São Paulo - SP..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                />
-              </div>
-
-              {/* Current Status */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Situação Atual do Prospecto</label>
-                <select
-                  value={currentStatus}
-                  onChange={(e) => setCurrentStatus(e.target.value as ClientCurrentStatus)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+              {/* Optional Manual Adjustments Accordion */}
+              <div className="border border-slate-800 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowManualFields(!showManualFields)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950/60 hover:bg-slate-950 text-left flex items-center justify-between text-xs font-semibold text-slate-300 transition-colors"
                 >
-                  <option value="has_instagram_only">Só possui Instagram / Redes Sociais</option>
-                  <option value="has_bad_site">Possui site antigo, lento ou sem SEO</option>
-                  <option value="no_site_no_gmn">Não tem site nem perfil no Google</option>
-                  <option value="has_abandoned_gmn">Tem Google Meu Negócio incompleto</option>
-                  <option value="just_starting">Empresa nova começando agora</option>
-                </select>
-              </div>
+                  <span className="flex items-center gap-1.5">
+                    <span>✏️ Ajustar Campos Manualmente</span>
+                    <span className="text-[10px] text-slate-500">(Opcional)</span>
+                  </span>
+                  <span className="text-xs text-cyan-400">{showManualFields ? '▲ Ocultar' : '▼ Ver Campos'}</span>
+                </button>
 
-              {/* Tone */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Tom da Abordagem</label>
-                <select
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value as PitchTone)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                >
-                  <option value="consultative_high_ticket">Consultivo de Alto Padrão (Autoridade Máxima)</option>
-                  <option value="roi_focused">Focado em ROI e Matemática do Negócio</option>
-                  <option value="direct_urgency">Direto ao Ponto com Urgência Comercial</option>
-                </select>
+                {showManualFields && (
+                  <div className="p-4 bg-slate-950/40 space-y-3.5 border-t border-slate-800">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Nome do Prospecto</label>
+                      <input
+                        type="text"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Ex: Dr. Fernando"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Nome da Empresa</label>
+                      <input
+                        type="text"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Ex: Clínica Vasconcelos"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Nicho / Segmento</label>
+                      <input
+                        type="text"
+                        value={niche}
+                        onChange={(e) => setNiche(e.target.value)}
+                        placeholder="Ex: Odontologia / Dentista"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {popularNiches.slice(0, 5).map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setNiche(item)}
+                            className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                              niche === item
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                                : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {item.split(' / ')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Cidade / Região</label>
+                      <input
+                        type="text"
+                        value={cityOrRegion}
+                        onChange={(e) => setCityOrRegion(e.target.value)}
+                        placeholder="Ex: Campinas - SP"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-300">Tom da Abordagem</label>
+                      <select
+                        value={tone}
+                        onChange={(e) => setTone(e.target.value as PitchTone)}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      >
+                        <option value="consultative_high_ticket">Consultivo de Alto Padrão (Autoridade Máxima)</option>
+                        <option value="roi_focused">Focado em ROI e Matemática do Negócio</option>
+                        <option value="direct_urgency">Direto ao Ponto com Urgência Comercial</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Generate Button */}
               <button
                 onClick={handleGeneratePitch}
                 disabled={isGeneratingPitch}
-                className="w-full py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-600 via-indigo-600 to-cyan-600 bg-size-200 hover:bg-right transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-600 via-indigo-600 to-cyan-600 bg-size-200 hover:bg-right transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isGeneratingPitch ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Engenharia de Vendas em Andamento...</span>
+                    <span>Gerando Scripts com Base nas Respostas...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-cyan-200" />
-                    <span>Gerar Script de Vendas & Diferenciais</span>
+                    <span>Gerar Script de Vendas & Fechamento</span>
                   </>
                 )}
               </button>
@@ -583,7 +818,7 @@ export const SalesCloserView: React.FC<SalesCloserViewProps> = ({ onNotify, onBa
                           <h5 className="text-xs font-bold text-indigo-300">Design que Encanta</h5>
                         </div>
                         <p className="text-xs text-slate-300 leading-relaxed">
-                          Criado para deixar os clientes fascinados (Master Prompt 7.0). Hierarquia visual magnética que transmite autoridade imediata e destrói qualquer concorrência amadora.
+                          Criado para deixar os clientes fascinados (Master Site Engine 9.0). Hierarquia visual magnética que transmite autoridade imediata e destrói qualquer concorrência amadora.
                         </p>
                       </div>
 

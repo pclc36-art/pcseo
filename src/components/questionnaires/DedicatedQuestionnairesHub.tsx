@@ -407,16 +407,17 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
         {/* Hero Header */}
         <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 p-6 sm:p-8 shadow-xl">
           <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>33 Nichos Especializados • {totalAllQuestions} Perguntas de Alta Conversão</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>33 Nichos Estratégicos • 100% Focado em Ranquear no Top 3 do Google</span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Super Questionários por Nicho
+              Questionários Estratégicos para Perfil Perfeito no Google
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-              Gere questionários interativos em <strong>HTML para enviar aos seus clientes</strong> (com botão direto para seu WhatsApp), 
-              copie em texto limpo sem asteriscos ou preencha diretamente para alimentar os Prompts Mestres e Dossiês do Google Meu Negócio.
+              Perguntas rigorosamente selecionadas para extrair apenas o que o algoritmo do Google Meu Negócio exige: 
+              <strong> Categoria Primária exata</strong>, <strong>Bairros de Maior Ticket</strong>, <strong>Palavras-chave em Alta</strong> e 
+              <strong> Catálogo Lucrativo</strong>. Com essas respostas, você monta o perfil que coloca seu cliente na parte de cima do Google!
             </p>
           </div>
         </div>

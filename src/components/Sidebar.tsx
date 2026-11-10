@@ -20,7 +20,7 @@ import {
 import { ActiveTab } from './Navbar';
 import { authService } from '../services/authService';
 
-export type ExtendedActiveTab = ActiveTab | 'questionnaires' | 'admin' | 'site_auditor' | 'sales_closer';
+export type ExtendedActiveTab = ActiveTab | 'questionnaires' | 'admin' | 'site_auditor' | 'media_optimizer';
 
 interface SidebarProps {
   activeTab: ExtendedActiveTab;
@@ -62,39 +62,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
       section: 'PRINCIPAL',
     },
     {
-      tab: 'sales_closer' as ExtendedActiveTab,
-      label: 'Fechador de Vendas',
-      subtitle: 'Scripts, SEO 100 & Objeções',
-      icon: Flame,
-      badge: 'VENDAS',
-      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+      tab: 'media_optimizer' as ExtendedActiveTab,
+      label: 'Otimizador de Mídia',
+      subtitle: 'WebP, Vídeos & PageSpeed 100',
+      icon: Zap,
+      badge: 'PAGE SPEED',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
       section: 'PRINCIPAL',
     },
     {
       tab: 'site_auditor' as ExtendedActiveTab,
       label: 'Auditor de Sites',
-      subtitle: 'Prompt Mestre 7.0 World-Class',
+      subtitle: 'Master Site Engine 9.0 World-Class',
       icon: Globe,
       badge: 'NOVO',
       badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
       section: 'PRINCIPAL',
     },
     {
-      tab: 'questionnaires' as ExtendedActiveTab,
-      label: 'Super Questionários',
-      subtitle: '33 Nichos • 1.048 Perguntas',
-      icon: FileQuestion,
-      badge: '33 Nichos',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-      section: 'PRINCIPAL',
-    },
-    {
       tab: 'gbp_pro' as ExtendedActiveTab,
       label: 'Google Business Profile',
-      subtitle: 'Auditoria Link & Dossiê 100/100',
+      subtitle: '33 Nichos, Auditoria & Dossiê',
       icon: Building2,
       badge: 'PRO',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      section: 'PRINCIPAL',
+    },
+    {
+      tab: 'questionnaires' as ExtendedActiveTab,
+      label: '33 Questionários GBP',
+      subtitle: 'Perguntas Estratégicas por Nicho',
+      icon: FileQuestion,
+      badge: '33 Nichos',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
       section: 'PRINCIPAL',
     },
     {

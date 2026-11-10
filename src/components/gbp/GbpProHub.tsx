@@ -14,20 +14,24 @@ import {
   ExternalLink,
   Trash2,
   Save,
-  ArrowLeft
+  ArrowLeft,
+  BookOpen,
+  Zap
 } from 'lucide-react';
 import { GbpQuestionnaireForm } from './GbpQuestionnaireForm';
 import { GbpDossierView } from './GbpDossierView';
 import { GbpAuditView } from './GbpAuditView';
 import { GbpDatabaseModal } from './GbpDatabaseModal';
+import { DedicatedQuestionnairesHub } from '../questionnaires/DedicatedQuestionnairesHub';
 import { GbpDossier, GbpAuditReport, GbpQuestionnaireData } from '../../types/gbpTypes';
 import { gbpDatabase } from '../../services/gbpDatabase';
-import { generateGbpDossier } from '../../services/gbpEngine';
+import { apiService } from '../../services/apiService';
 
 interface GbpProHubProps {
   onNotify: (title: string, desc?: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   initialQuestionnaire?: Partial<GbpQuestionnaireData> | null;
   onClearInitialQuestionnaire?: () => void;
+  initialSubTab?: 'create' | 'questionnaires' | 'audit' | 'history';
   onBack?: () => void;
 }
 
@@ -35,9 +39,18 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
   onNotify,
   initialQuestionnaire,
   onClearInitialQuestionnaire,
+  initialSubTab,
   onBack,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'create' | 'audit' | 'history'>('create');
+  const [activeSubTab, setActiveSubTab] = useState<'create' | 'questionnaires' | 'audit' | 'history'>(
+    initialSubTab || 'create'
+  );
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
   const [currentDossier, setCurrentDossier] = useState<GbpDossier | null>(null);
   const [savedDossiers, setSavedDossiers] = useState<GbpDossier[]>([]);
   const [savedAudits, setSavedAudits] = useState<GbpAuditReport[]>([]);
@@ -75,24 +88,28 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Handle Generate Dossier from questionnaire
+  // Handle Generate Dossier from questionnaire via apiService
   const handleGenerateDossier = async (questionnaire: GbpQuestionnaireData) => {
     setIsGeneratingDossier(true);
-    onNotify('Gerando Dossiê Estratégico', 'Construindo as 13 etapas em conformidade com as diretrizes do Google...', 'info');
+    onNotify(
+      'Gerando Dossiê de Alta Performance',
+      'Processando questionário estratégico e diretrizes do Google Maps (Top 3 Local Pack)...',
+      'info'
+    );
 
     try {
-      const { dossier, source } = await generateGbpDossier(questionnaire);
+      const { dossier, source } = await apiService.generateGbpDossier(questionnaire);
       // Save permanently to IndexedDB
       await gbpDatabase.saveDossier(dossier);
       setCurrentDossier(dossier);
       setActiveSubTab('create');
       onNotify(
-        'Dossiê Concluído com Sucesso!',
-        `Todas as 13 etapas prontas com 4+ palavras-chave em alta no Google e salvos no banco.`,
+        'Dossiê de Máxima Performance Gerado!',
+        `Todas as 13 etapas para ranquear no topo do Google geradas com sucesso via ${source === 'gemini' ? 'Gemini IA' : 'Motor Estratégico Local'} e salvas no banco.`,
         'success'
       );
     } catch (err: any) {
-      onNotify('Erro ao Gerar Dossiê', err.message, 'error');
+      onNotify('Erro ao Gerar Dossiê', err.message || 'Falha ao processar perfil.', 'error');
     } finally {
       setIsGeneratingDossier(false);
     }
@@ -205,19 +222,34 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
       <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none w-full max-w-full">
         <button
           onClick={() => setActiveSubTab('create')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
             activeSubTab === 'create'
               ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
-          <PlusCircle className="w-4 h-4" />
-          <span>Criador de Perfil (33 Nichos)</span>
+          <Zap className="w-4 h-4 text-cyan-300" />
+          <span>Criador Rápido (Colar Respostas)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('questionnaires')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
+            activeSubTab === 'questionnaires'
+              ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-md shadow-indigo-600/25'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          }`}
+        >
+          <BookOpen className="w-4 h-4 text-indigo-300" />
+          <span>33 Questionários por Nicho</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-700/50 font-bold">
+            33 NICHOS
+          </span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('audit')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
             activeSubTab === 'audit'
               ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -229,7 +261,7 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
 
         <button
           onClick={() => setActiveSubTab('history')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
             activeSubTab === 'history'
               ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -339,7 +371,19 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
         </div>
       )}
 
-      {/* TAB 2: AUDITOR INTELIGENTE */}
+      {/* TAB 2: 33 QUESTIONÁRIOS ESTRATÉGICOS POR NICHO */}
+      {activeSubTab === 'questionnaires' && (
+        <div className="space-y-4 w-full min-w-0">
+          <DedicatedQuestionnairesHub
+            onNotify={onNotify}
+            onGenerateDossierFromQuestionnaire={async (data) => {
+              await handleGenerateDossier(data as GbpQuestionnaireData);
+            }}
+          />
+        </div>
+      )}
+
+      {/* TAB 3: AUDITOR INTELIGENTE */}
       {activeSubTab === 'audit' && (
         <GbpAuditView
           onNotify={onNotify}

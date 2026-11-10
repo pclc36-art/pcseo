@@ -23,7 +23,7 @@ import {
   BookmarkPlus
 } from 'lucide-react';
 import { GbpAuditReport, GbpAuditRequest } from '../../types/gbpTypes';
-import { auditGbpProfile } from '../../services/gbpEngine';
+import { apiService } from '../../services/apiService';
 import { gbpDatabase } from '../../services/gbpDatabase';
 import { copyToClipboard as safeCopy } from '../../utils/clipboard';
 
@@ -124,7 +124,7 @@ export const GbpAuditView: React.FC<GbpAuditViewProps> = ({
     };
 
     try {
-      const { report, source } = await auditGbpProfile(req);
+      const { report, source } = await apiService.auditGbpProfile(req);
       // Auto save to persistent DB
       await gbpDatabase.saveAudit(report);
       setActiveReport(report);

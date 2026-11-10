@@ -9,11 +9,21 @@ export interface SiteAuditRequest {
 export interface MetricPillarScore {
   name: string;
   score: number; // 0 - 100
+  weight?: number; // e.g. 20, 15, 10, 8, 7, 5
   status: 'critical' | 'warning' | 'good' | 'optimal';
   description: string;
-  masterPromptRule: string; // e.g., "Seção 3 — Posicionamento Comercial & UVP"
+  masterPromptRule: string; // e.g., "Diretriz 4 — Design & Identidade Visual (Peso 20%)"
   currentFlaws: string[];
   recommendations: string[];
+}
+
+export interface CriticalBlocker {
+  id: string;
+  title: string;
+  evidence: string;
+  impact: string;
+  correction: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
 }
 
 export interface SiteImprovementAction {
@@ -61,11 +71,25 @@ export interface SiteAuditReport {
   analyzedAt: string;
   masterPromptVersion: string;
   overallScore: number; // 0 - 100
-  scoreLabel: string; // "Amador", "Médio", "Padrão Ouro"
+  scoreLabel: string; // "Excelência Internacional", "Excelente", "Muito Bom", "Regular", "Insatisfatório", "Crítico"
+  approvalStatus: 'APROVADO' | 'APROVADO COM MELHORIAS' | 'EXIGE CORREÇÕES' | 'REPROVADO';
+  hasCriticalBlocker: boolean;
   primaryNicheDetected: string;
   executiveSummary: string;
   ownerInfo: SiteOwnerInfo;
   extractedImages: ExtractedSiteImage[];
+  // 8 Categorias Oficiais do MASTER SITE ENGINE 10.0 com Pesos Oficiais
+  categories10: {
+    design: MetricPillarScore; // Peso: 20%
+    seo: MetricPillarScore; // Peso: 20%
+    performance: MetricPillarScore; // Peso: 15%
+    conversion: MetricPillarScore; // Peso: 15%
+    uxResponsiveness: MetricPillarScore; // Peso: 10%
+    accessibility: MetricPillarScore; // Peso: 8%
+    securityCompliance: MetricPillarScore; // Peso: 7%
+    technicalQuality: MetricPillarScore; // Peso: 5%
+  };
+  // Compatibilidade com visualizadores anteriores
   corePillars: {
     uvpAndPositioning: MetricPillarScore;
     luxuryDigitalStandard: MetricPillarScore;
@@ -75,8 +99,11 @@ export interface SiteAuditReport {
     accessibilityAndColor: MetricPillarScore;
     onPageSeo: MetricPillarScore;
   };
+  criticalBlockers: CriticalBlocker[];
   criticalBottlenecks: string[];
+  positiveHighlights: string[];
   recommendedImprovements: SiteImprovementAction[];
+  reengineeringMegaPrompt: string; // Mega Prompt Definitivo de Recriação & Reengenharia 10.0
   generatedNewPromptPreview: string;
   fullClientMarkdownReport: string;
 }
