@@ -106,4 +106,52 @@ export interface SiteAuditReport {
   reengineeringMegaPrompt: string; // Mega Prompt Definitivo de Recriação & Reengenharia 10.0
   generatedNewPromptPreview: string;
   fullClientMarkdownReport: string;
+  pageSpeedData?: PageSpeedAuditData;
 }
+
+export interface PageSpeedMetricItem {
+  title: string;
+  value: string;
+  displayValue: string;
+  numericValue: number;
+  status: 'good' | 'needs_improvement' | 'poor';
+  benchmark: string;
+  description: string;
+}
+
+export interface PageSpeedOpportunityItem {
+  title: string;
+  description: string;
+  savingsKB?: number;
+  savingsMs?: number;
+  impact: 'high' | 'medium' | 'low';
+}
+
+export interface PageSpeedAuditData {
+  url: string;
+  strategy: 'mobile' | 'desktop';
+  analyzedAt: string;
+  score: number; // 0 - 100
+  scoreDecimal: number; // e.g. 9.6
+  isAbove95: boolean; // >= 95
+  gradeLabel: string;
+  categories: {
+    performance: number;
+    accessibility: number;
+    bestPractices: number;
+    seo: number;
+  };
+  coreWebVitals: {
+    fcp: PageSpeedMetricItem;
+    lcp: PageSpeedMetricItem;
+    cls: PageSpeedMetricItem;
+    inp: PageSpeedMetricItem;
+    ttfb: PageSpeedMetricItem;
+    speedIndex: PageSpeedMetricItem;
+  };
+  diagnostics: string[];
+  opportunities: PageSpeedOpportunityItem[];
+  officialPageSpeedUrl: string;
+  source: 'google_api' | 'live_diagnostic_engine';
+}
+

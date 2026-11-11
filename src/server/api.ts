@@ -441,8 +441,18 @@ EXECUTE A AUDITORIA E RETORNE UM JSON VÁLIDO contendo:
     - accessibility (peso 8)
     - securityCompliance (peso 7)
     - technicalQuality (peso 5)
+DIRETRIZ SUPREMA DE VELOCIDADE (OBRIGATÓRIO NOTA > 9.5 NO GOOGLE PAGESPEED INSIGHTS):
+Todo site e landing page DEVE ser concebido para ser ultrarrápido e atingir nota mínima de nove e meio (>= 9.5 / 95pts) no Google PageSpeed Insights tanto no Mobile quanto no Desktop.
+- LCP (Largest Contentful Paint) < 1.8s
+- CLS (Cumulative Layout Shift) < 0.05
+- INP / FID < 100ms
+- FCP < 1.0s
+- Imagens em WebP/AVIF (<150KB fundos, <80KB destaque, largura máxima 1920px desktop e 800px mobile)
+- Vídeos em loop de 5-10s no servidor ou fachada lazy para YouTube/Vimeo.
+Na categoria "performance" e nos bloqueadores, avalie estritamente se o site atende ao critério de velocidade > 9.5.
+
 11. "recommendedImprovements": array de 6 objetos com ações de melhoria concretas prontas para copiar
-12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 autossuficiente e completo para colar em ferramentas com IA (Lovable, Bolt, Cursor ou Studio).
+12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 autossuficiente e completo para colar em ferramentas com IA (Lovable, Bolt, Cursor ou Studio), garantindo a meta inegociável de 9.5+ no PageSpeed Insights.
 `;
 
   const modelsToTry = ['gemini-3.8-flash'];

@@ -25,6 +25,7 @@ import { Project, MasterPromptVersion, TestScenario } from '../types';
 import { TEST_SCENARIOS } from '../data/testScenarios';
 import { storageService } from '../services/storageService';
 import { ExtendedActiveTab } from './Sidebar';
+import { ConsolidatedMetricsDashboard } from './dashboard/ConsolidatedMetricsDashboard';
 
 interface DashboardViewProps {
   projects: Project[];
@@ -314,52 +315,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Real Statistics Indicators */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-400">Total de Projetos</p>
-            <p className="text-2xl font-bold text-white mt-1">{totalProjects}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Registrados no storage</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400">
-            <FolderKanban className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-400">Prompts Gerados</p>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">{completedProjects}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Prontos para copiar</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center text-emerald-400">
-            <CheckCircle className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-400">Em Análise</p>
-            <p className="text-2xl font-bold text-amber-400 mt-1">{analyzedProjects}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Dados estruturados</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center text-amber-400">
-            <Clock className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-400">Rascunhos Iniciais</p>
-            <p className="text-2xl font-bold text-slate-300 mt-1">{draftProjects}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Aguardando análise</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
-            <FileText className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
+      {/* Dashboard de Métricas Consolidado: Total de Projetos, Média PageSpeed e Status GBP */}
+      <ConsolidatedMetricsDashboard
+        projects={projects}
+        onNavigateTab={setActiveTab}
+        onOpenProject={onOpenProject}
+      />
 
       {/* Resume Active Project Shortcut (if exists) */}
       {activeProject && (

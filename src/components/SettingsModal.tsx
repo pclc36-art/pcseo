@@ -182,22 +182,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
           </div>
 
-          {/* Cloud Sync & Firebase Status */}
+          {/* Banco de Dados Hostinger & Persistência Nativa (Zero Supabase) */}
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2.5">
             <h3 className="font-bold text-white flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>Sincronização em Nuvem & Firebase</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Banco de Dados Hostinger & Persistência Nativa</span>
             </h3>
             <div className="flex items-center justify-between text-[11px] pt-1">
-              <span className="text-slate-400">Modo de Persistência Atual:</span>
-              <span className="text-emerald-400 font-semibold font-mono">Nativo / LocalStorage + Backups JSON</span>
+              <span className="text-slate-400">Status do Supabase:</span>
+              <span className="text-emerald-400 font-semibold font-mono">100% Removido / Desligado</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-400">Firebase Firestore:</span>
-              <span className="text-slate-300 font-medium">Desconectado (Configuração Recusada pelo Usuário)</span>
+              <span className="text-slate-400">Banco de Dados Recomendado:</span>
+              <span className="text-cyan-300 font-medium">MySQL / MariaDB Nativo Hostinger (hPanel)</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-400">Armazenamento Local da Aplicação:</span>
+              <span className="text-slate-200 font-medium">IndexedDB + LocalStorage + Backups JSON</span>
             </div>
             <p className="text-[10px] text-slate-400 pt-1 leading-relaxed">
-              O estúdio opera de maneira autônoma com salvamento instantâneo no navegador e exportação/importação manual em JSON estruturado, sem dependência de serviços externos.
+              Sua aplicação opera de forma 100% autônoma na Hostinger, sem nenhuma dependência de Supabase, Firebase ou serviços de terceiros pagos. Os dados são salvos com soberania local e podem ser exportados/importados a qualquer momento em JSON.
             </p>
           </div>
         </div>

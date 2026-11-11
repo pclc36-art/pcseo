@@ -12,6 +12,7 @@ import {
   generatePitchWithGemini,
   solveObjectionWithGemini
 } from './src/server/api.ts';
+import { runPageSpeedAnalysis } from './src/server/pageSpeedService.ts';
 import { serverAuthStore } from './src/server/authStore.ts';
 
 function parseRequestBody(req: any): Promise<any> {
@@ -164,6 +165,36 @@ function apiMiddlewarePlugin(): Plugin {
             }
             res.statusCode = 200;
             return res.end(JSON.stringify({ success: false, source: 'heuristic', message: 'Fallback to heuristic auditor' }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+        }
+
+        // ================= GOOGLE PAGESPEED INSIGHTS 9.5+ ENGINE =================
+        if (pathname === '/api/pagespeed/analyze') {
+          try {
+            let targetUrl = '';
+            let targetStrategy: 'mobile' | 'desktop' = 'mobile';
+
+            if (req.method === 'GET') {
+              const urlObj = new URL(rawUrl, 'http://localhost:3000');
+              targetUrl = urlObj.searchParams.get('url') || '';
+              targetStrategy = (urlObj.searchParams.get('strategy') === 'desktop' ? 'desktop' : 'mobile') as 'mobile' | 'desktop';
+            } else if (req.method === 'POST') {
+              const body = await parseRequestBody(req);
+              targetUrl = body.url || '';
+              targetStrategy = (body.strategy === 'desktop' ? 'desktop' : 'mobile') as 'mobile' | 'desktop';
+            }
+
+            if (!targetUrl) {
+              res.statusCode = 400;
+              return res.end(JSON.stringify({ success: false, error: 'URL é obrigatória para análise de PageSpeed.' }));
+            }
+
+            const analysis = await runPageSpeedAnalysis(targetUrl, targetStrategy);
+            res.statusCode = 200;
+            return res.end(JSON.stringify({ success: true, data: analysis }));
           } catch (err: any) {
             res.statusCode = 500;
             return res.end(JSON.stringify({ success: false, error: err.message }));

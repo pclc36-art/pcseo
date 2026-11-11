@@ -197,9 +197,12 @@ ARQUITETURA TECNOLÓGICA E FRAMEWORK (MÓDULO ASTRO-FIRST & HOSTINGER)
 - Método de Publicação e Comandos de Build/Deploy:
   * Comando de compilação: 'npm run build' (gera a pasta 'dist/').
   * Deploy: Transferência da pasta 'dist/' para a raiz do servidor web ('public_html' na Hostinger).
-- Testes de Performance Necessários:
-  * Meta: Apresentar o conteúdo principal em menos de 1 segundo nas condições adequadas de teste.
-  * Garantir FCP < 1.0s, LCP < 2.0s, CLS < 0.05 e pontuação $\ge$ 90 no PageSpeed Insights.
+- DIRETRIZ SUPREMA DE VELOCIDADE (OBRIGATÓRIO NOTA > 9.5 NO GOOGLE PAGESPEED INSIGHTS):
+  * Meta Obrigatória: Pontuação superior a nove e meio (>= 9.5 / 95/100) no Google PageSpeed Insights tanto no Mobile quanto no Desktop.
+  * Core Web Vitals: LCP < 1.8s no 4G móvel, CLS < 0.05 (zero pulos de layout), INP < 100ms (resposta imediata), FCP < 1.0s, TTFB < 300ms na Hostinger.
+  * Peso Total da Página: Menor que 800 KB na carga inicial.
+  * Otimização de Mídias: 100% das imagens convertidas em WebP/AVIF (<150KB fundos, <80KB fotos de destaque, max 1920px desktop e 800px mobile). Dimensões width e height explícitas em todas as tags <img>.
+  * Vídeos Ultrarrápidos: MP4 H.264 Web Optimized curto (5 a 10s) para fundos sem áudio; carregamento sob demanda (lazy facade) para demonstrações no YouTube/Vimeo.
 `;
 
   // Target Platform Specific Prompt Framing

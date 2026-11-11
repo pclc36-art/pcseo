@@ -560,6 +560,7 @@ export default function App() {
               activeMaster={activeMaster}
               onNotify={showToast}
               onBack={handleBack}
+              onNavigateToMediaOptimizer={() => navigateToTab('media_optimizer' as any)}
               onCreateProjectFromAudit={(info) => {
                 setNewProjectInitialValues({
                   name: info.name,

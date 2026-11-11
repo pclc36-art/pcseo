@@ -11,9 +11,10 @@ import {
   generateGbpDossierWithGemini,
   auditGbpProfileWithGemini,
   generatePitchWithGemini,
-  solveObjectionWithGemini
+  solveObjectionWithGemini,
 } from './src/server/api';
 import { serverAuthStore } from './src/server/authStore';
+import { runPageSpeedAnalysis } from './src/server/pageSpeedService';
 
 dotenv.config();
 
@@ -107,6 +108,35 @@ app.post('/api/audit-site', async (req, res) => {
     } else {
       return res.json({ success: false, source: 'heuristic', message: 'Fallback to client heuristic engine' });
     }
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Google PageSpeed Insights & Performance 9.5+ Live Engine
+app.get('/api/pagespeed/analyze', async (req, res) => {
+  try {
+    const rawUrl = (req.query.url as string) || '';
+    const strategy = ((req.query.strategy as string) === 'desktop' ? 'desktop' : 'mobile') as 'mobile' | 'desktop';
+    if (!rawUrl) {
+      return res.status(400).json({ success: false, error: 'URL é obrigatória para análise de PageSpeed.' });
+    }
+    const result = await runPageSpeedAnalysis(rawUrl, strategy);
+    return res.json({ success: true, data: result });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/pagespeed/analyze', async (req, res) => {
+  try {
+    const { url, strategy } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL é obrigatória para análise de PageSpeed.' });
+    }
+    const strat = (strategy === 'desktop' ? 'desktop' : 'mobile') as 'mobile' | 'desktop';
+    const result = await runPageSpeedAnalysis(url, strat);
+    return res.json({ success: true, data: result });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

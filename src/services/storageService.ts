@@ -1,4 +1,5 @@
 import { MasterPromptVersion, Project } from '../types';
+import { SiteAuditReport } from '../types/siteAuditTypes';
 import { 
   DEFAULT_MASTER_PROMPT_CONTENT, 
   DEFAULT_MASTER_PROMPT_VERSION,
@@ -458,6 +459,134 @@ class StorageService {
       versionCount: versions.length,
       bytesUsed: bytes,
       formattedSize: `${kb} KB`,
+    };
+  }
+
+  // ==========================================
+  // SITE AUDITS & PAGESPEED METRICS CONSOLIDATION
+  // ==========================================
+  getSavedSiteAudits(): SiteAuditReport[] {
+    if (!this.isBrowser()) return [];
+    try {
+      const raw = localStorage.getItem('master_prompt_site_audits_history');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  getPageSpeedMetrics(): {
+    totalAudits: number;
+    averageScoreDecimal: number;
+    averageScore100: number;
+    isAverageAbove95: boolean;
+    above95Count: number;
+    above95Percent: number;
+    averageLcpSec: number | null;
+    averageCls: number | null;
+    averageTtfbMs: number | null;
+    latestAudit: SiteAuditReport | null;
+    scoreDistribution: {
+      elite: number;
+      good: number;
+      regular: number;
+      critical: number;
+    };
+  } {
+    const audits = this.getSavedSiteAudits();
+    if (audits.length === 0) {
+      return {
+        totalAudits: 0,
+        averageScoreDecimal: 0,
+        averageScore100: 0,
+        isAverageAbove95: false,
+        above95Count: 0,
+        above95Percent: 0,
+        averageLcpSec: null,
+        averageCls: null,
+        averageTtfbMs: null,
+        latestAudit: null,
+        scoreDistribution: { elite: 0, good: 0, regular: 0, critical: 0 },
+      };
+    }
+
+    let sumDecimal = 0;
+    let above95 = 0;
+    let sumLcp = 0;
+    let lcpCount = 0;
+    let sumCls = 0;
+    let clsCount = 0;
+    let sumTtfb = 0;
+    let ttfbCount = 0;
+
+    const distribution = {
+      elite: 0, // >= 9.5
+      good: 0, // 8.0 - 9.4
+      regular: 0, // 6.0 - 7.9
+      critical: 0, // < 6.0
+    };
+
+    audits.forEach((audit) => {
+      let scoreDec = 0;
+      if (audit.pageSpeedData?.scoreDecimal !== undefined) {
+        scoreDec = audit.pageSpeedData.scoreDecimal;
+      } else if (audit.pageSpeedData?.score !== undefined) {
+        scoreDec = Math.round(audit.pageSpeedData.score) / 10;
+      } else if (audit.categories10?.performance?.score !== undefined) {
+        scoreDec = Math.round(audit.categories10.performance.score) / 10;
+      } else {
+        scoreDec = Math.round(audit.overallScore) / 10;
+      }
+
+      sumDecimal += scoreDec;
+
+      if (scoreDec >= 9.5) {
+        above95++;
+        distribution.elite++;
+      } else if (scoreDec >= 8.0) {
+        distribution.good++;
+      } else if (scoreDec >= 6.0) {
+        distribution.regular++;
+      } else {
+        distribution.critical++;
+      }
+
+      // Web Vitals stats if present
+      if (audit.pageSpeedData?.coreWebVitals) {
+        const { lcp, cls, ttfb } = audit.pageSpeedData.coreWebVitals;
+        if (lcp?.numericValue) {
+          sumLcp += lcp.numericValue;
+          lcpCount++;
+        }
+        if (cls?.numericValue !== undefined) {
+          sumCls += cls.numericValue;
+          clsCount++;
+        }
+        if (ttfb?.numericValue) {
+          sumTtfb += ttfb.numericValue;
+          ttfbCount++;
+        }
+      }
+    });
+
+    const avgDecimal = Number((sumDecimal / audits.length).toFixed(1));
+    const avgScore100 = Math.round(avgDecimal * 10);
+    const above95Percent = Math.round((above95 / audits.length) * 100);
+
+    return {
+      totalAudits: audits.length,
+      averageScoreDecimal: avgDecimal,
+      averageScore100: avgScore100,
+      isAverageAbove95: avgDecimal >= 9.5,
+      above95Count: above95,
+      above95Percent,
+      averageLcpSec: lcpCount > 0 ? Number((sumLcp / lcpCount / 1000).toFixed(2)) : null,
+      averageCls: clsCount > 0 ? Number((sumCls / clsCount).toFixed(3)) : null,
+      averageTtfbMs: ttfbCount > 0 ? Math.round(sumTtfb / ttfbCount) : null,
+      latestAudit: audits[0] || null,
+      scoreDistribution: distribution,
     };
   }
 }

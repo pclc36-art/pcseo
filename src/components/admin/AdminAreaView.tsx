@@ -993,6 +993,36 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Hostinger & Zero-Supabase Architecture Card */}
+          <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/40 via-slate-950 to-cyan-950/30 border border-emerald-500/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Banco de Dados Nativo Hostinger • Supabase 100% Removido</span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                100% Autônomo
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              O sistema <strong>não utiliza Supabase</strong> nem qualquer serviço externo pago de banco em nuvem. Todo o armazenamento do estúdio opera com <strong>soberania total de dados</strong>:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                <span className="text-emerald-400 font-bold block mb-0.5">Sem Supabase / Cloud</span>
+                <span className="text-slate-400">Zero dependência de chaves de API pagas ou quotas limitantes de terceiros.</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                <span className="text-cyan-400 font-bold block mb-0.5">Hostinger MySQL/MariaDB</span>
+                <span className="text-slate-400">Compatibilidade nativa com os bancos de dados já inclusos no seu plano hPanel.</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                <span className="text-indigo-400 font-bold block mb-0.5">IndexedDB & JSON</span>
+                <span className="text-slate-400">Persistência ultrarrápida no navegador com exportação e importação instantânea de backups.</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -31,15 +31,26 @@ import {
   MapPin,
   Image as ImageIcon,
   ArrowLeft,
+  Smartphone,
+  Monitor,
+  Gauge,
+  Activity,
+  ArrowUpRight,
 } from 'lucide-react';
 import { 
   SiteAuditRequest, 
   SiteAuditReport, 
   SiteImprovementAction, 
   SiteOwnerInfo, 
-  ExtractedSiteImage 
+  ExtractedSiteImage,
+  PageSpeedAuditData
 } from '../types/siteAuditTypes';
-import { auditWebsiteWithMasterPrompt, generateHeuristicSiteAudit, extractDomainFromUrl } from '../services/siteAuditorEngine';
+import { 
+  auditWebsiteWithMasterPrompt, 
+  generateHeuristicSiteAudit, 
+  extractDomainFromUrl,
+  fetchPageSpeedAudit
+} from '../services/siteAuditorEngine';
 import { MasterPromptVersion, ProjectType, TargetPlatform } from '../types';
 import { copyToClipboard as safeCopy } from '../utils/clipboard';
 
@@ -47,6 +58,7 @@ interface SiteAuditorViewProps {
   activeMaster: MasterPromptVersion;
   onNotify: (title: string, desc?: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   onBack?: () => void;
+  onNavigateToMediaOptimizer?: () => void;
   onCreateProjectFromAudit?: (siteInfo: {
     name: string;
     clientName: string;
@@ -68,6 +80,7 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
   activeMaster,
   onNotify,
   onBack,
+  onNavigateToMediaOptimizer,
   onCreateProjectFromAudit,
 }) => {
   const [urlInput, setUrlInput] = useState('');
@@ -80,6 +93,36 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
   const [activeTabSection, setActiveTabSection] = useState<'audit_now' | 'saved_history'>('audit_now');
   const [reportToDelete, setReportToDelete] = useState<string | null>(null);
   const [isConfirmClearAll, setIsConfirmClearAll] = useState<boolean>(false);
+  const [pageSpeedStrategy, setPageSpeedStrategy] = useState<'mobile' | 'desktop'>('mobile');
+  const [isLoadingPageSpeed, setIsLoadingPageSpeed] = useState<boolean>(false);
+
+  // Re-run PageSpeed on demand (e.g. when user toggles Mobile / Desktop)
+  const handleFetchPageSpeed = async (strategy: 'mobile' | 'desktop') => {
+    if (!activeReport) return;
+    setPageSpeedStrategy(strategy);
+    setIsLoadingPageSpeed(true);
+    try {
+      const data = await fetchPageSpeedAudit(activeReport.url, strategy);
+      if (data) {
+        const updatedReport: SiteAuditReport = {
+          ...activeReport,
+          pageSpeedData: data,
+        };
+        setActiveReport(updatedReport);
+        const updatedList = savedReports.map((r) => (r.id === activeReport.id ? updatedReport : r));
+        persistSavedReports(updatedList);
+        onNotify(
+          'PageSpeed Atualizado!',
+          `Análise ${strategy === 'mobile' ? 'Mobile' : 'Desktop'} concluída com nota ${data.scoreDecimal}/10.`,
+          data.isAbove95 ? 'success' : 'warning'
+        );
+      }
+    } catch {
+      onNotify('Erro ao Analisar', 'Não foi possível consultar o PageSpeed.', 'error');
+    } finally {
+      setIsLoadingPageSpeed(false);
+    }
+  };
 
   // Load history from localStorage
   useEffect(() => {
@@ -98,6 +141,13 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
       console.warn('Erro ao carregar histórico de auditorias:', e);
     }
   }, []);
+
+  // Auto-fetch PageSpeed if not yet present in active report
+  useEffect(() => {
+    if (activeReport && !activeReport.pageSpeedData && !isLoadingPageSpeed) {
+      handleFetchPageSpeed('mobile');
+    }
+  }, [activeReport?.id]);
 
   // Save reports to localStorage
   const persistSavedReports = (list: SiteAuditReport[]) => {
@@ -548,6 +598,330 @@ ${activeReport.recommendedImprovements.map((imp: SiteImprovementAction) => `[${i
                 <span>Imprimir / PDF</span>
               </button>
             </div>
+          </div>
+
+          {/* SECTION: GOOGLE PAGESPEED INSIGHTS INTEGRADO (META > 9.5) */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-teal-500/30 hover:border-teal-400/50 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-5 w-full min-w-0 transition-all">
+            {/* Header with Title and Device Toggle */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4 w-full min-w-0">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500 via-emerald-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/20 shrink-0">
+                  <Gauge className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+                      Google PageSpeed Insights Integrado
+                    </h3>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                      DIRETRIZ SUPREMA: META &gt; 9.5
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Diagnóstico em tempo real de Core Web Vitals e velocidade no Mobile e Desktop para sites e landing pages.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Controls: Mobile/Desktop Toggle + Re-run + Official Google Link */}
+              <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto shrink-0">
+                {/* Mobile / Desktop Selector */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => handleFetchPageSpeed('mobile')}
+                    disabled={isLoadingPageSpeed}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      pageSpeedStrategy === 'mobile'
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Analisar desempenho no Celular (Dispositivo Móvel 4G)"
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Mobile (4G)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleFetchPageSpeed('desktop')}
+                    disabled={isLoadingPageSpeed}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      pageSpeedStrategy === 'desktop'
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Analisar desempenho no Computador (Desktop)"
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>Desktop</span>
+                  </button>
+                </div>
+
+                {/* Re-analyze Button */}
+                <button
+                  type="button"
+                  onClick={() => handleFetchPageSpeed(pageSpeedStrategy)}
+                  disabled={isLoadingPageSpeed}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                  title="Atualizar medição do PageSpeed"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPageSpeed ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingPageSpeed ? 'Analisando...' : 'Reanalisar'}</span>
+                </button>
+
+                {/* Direct Link to Google PageSpeed Insights Tool */}
+                <a
+                  href={`https://pagespeed.web.dev/analysis?url=${encodeURIComponent(activeReport.url)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 text-xs font-bold border border-cyan-800/50 transition-colors"
+                  title="Abrir relatório no site oficial do Google PageSpeed Insights"
+                >
+                  <span>Google Oficial</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-cyan-400" />
+                </a>
+              </div>
+            </div>
+
+            {/* Score & Core Web Vitals Presentation */}
+            {activeReport.pageSpeedData ? (
+              <div className="space-y-4">
+                {/* Hero Score Row */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {/* Big Score Gauge */}
+                    <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-800 border-2 border-slate-700 flex flex-col items-center justify-center shrink-0 shadow-inner">
+                      <span className={`text-3xl font-black tracking-tight ${
+                        activeReport.pageSpeedData.score >= 95
+                          ? 'text-emerald-400'
+                          : activeReport.pageSpeedData.score >= 85
+                          ? 'text-teal-400'
+                          : activeReport.pageSpeedData.score >= 65
+                          ? 'text-amber-400'
+                          : 'text-rose-400'
+                      }`}>
+                        {activeReport.pageSpeedData.scoreDecimal}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">/ 10</span>
+                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-950 ${
+                        activeReport.pageSpeedData.isAbove95 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                      }`}></div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
+                          activeReport.pageSpeedData.isAbove95
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        }`}>
+                          {activeReport.pageSpeedData.isAbove95
+                            ? '🏆 PADRÃO OURO: NOTA ACIMA DE 9.5 (95+)'
+                            : '⚠️ ATENÇÃO: NOTA ABAIXO DE 9.5 (< 95pts)'}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          ({activeReport.pageSpeedData.score}/100 no Lighthouse {pageSpeedStrategy === 'mobile' ? 'Mobile' : 'Desktop'})
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                        {activeReport.pageSpeedData.isAbove95
+                          ? 'Excelente! Esta página atende à Diretriz Suprema de Velocidade, garantindo taxa de retenção máxima de leads e prioridade no algoritmo de ranqueamento do Google.'
+                          : 'Esta página está abaixo da nota mínima de 9.5. Páginas lentas perdem até 53% das conversões no mobile e pagam mais caro no Google Ads. Utilize as recomendações abaixo para atingir 9.5+.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Lighthouse 4 Categories */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Performance</span>
+                      <span className={`text-base font-black ${activeReport.pageSpeedData.categories.performance >= 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {activeReport.pageSpeedData.categories.performance}%
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Acessibilidade</span>
+                      <span className="text-base font-black text-cyan-400">
+                        {activeReport.pageSpeedData.categories.accessibility}%
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Práticas</span>
+                      <span className="text-base font-black text-indigo-400">
+                        {activeReport.pageSpeedData.categories.bestPractices}%
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">SEO</span>
+                      <span className="text-base font-black text-teal-400">
+                        {activeReport.pageSpeedData.categories.seo}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Core Web Vitals 6-Grid */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Métricas Oficiais de Core Web Vitals (Google Web Vitals)</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {/* LCP */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">LCP (Conteúdo Principal)</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.lcp.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.lcp.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.lcp.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.lcp.benchmark}</div>
+                    </div>
+
+                    {/* CLS */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">CLS (Estabilidade Visual)</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.cls.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.cls.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.cls.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.cls.benchmark}</div>
+                    </div>
+
+                    {/* INP */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">INP / Interatividade</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.inp.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.inp.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.inp.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.inp.benchmark}</div>
+                    </div>
+
+                    {/* FCP */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">FCP (Primeira Pintura)</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.fcp.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.fcp.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.fcp.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.fcp.benchmark}</div>
+                    </div>
+
+                    {/* TTFB */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">TTFB (Tempo do Servidor)</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.ttfb.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.ttfb.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.ttfb.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.ttfb.benchmark}</div>
+                    </div>
+
+                    {/* Speed Index */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Speed Index (Preenchimento)</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          activeReport.pageSpeedData.coreWebVitals.speedIndex.status === 'good'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {activeReport.pageSpeedData.coreWebVitals.speedIndex.displayValue}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{activeReport.pageSpeedData.coreWebVitals.speedIndex.description}</p>
+                      <div className="text-[10px] font-semibold text-teal-400 pt-0.5">{activeReport.pageSpeedData.coreWebVitals.speedIndex.benchmark}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diagnostics and Action Bar */}
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Oportunidades de Otimização para Atingir Nota 9.5+</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Aplique estas melhorias para garantir que seu site alcance pontuação verde acima de 95 no Google.
+                      </p>
+                    </div>
+
+                    {/* Button to open Media Optimizer */}
+                    {onNavigateToMediaOptimizer && (
+                      <button
+                        type="button"
+                        onClick={onNavigateToMediaOptimizer}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-xs font-bold transition-all shadow-md shadow-teal-500/20 cursor-pointer shrink-0 self-start sm:self-auto"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>⚡ Abrir Otimizador de Mídia (WebP &amp; HandBrake)</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Opportunities List */}
+                  {activeReport.pageSpeedData.opportunities.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {activeReport.pageSpeedData.opportunities.map((opp, idx) => (
+                        <div key={idx} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80 text-[11px] space-y-1">
+                          <div className="flex items-center justify-between font-bold text-slate-200">
+                            <span>• {opp.title}</span>
+                            {opp.savingsKB && <span className="text-emerald-400">-{opp.savingsKB} KB</span>}
+                            {opp.savingsMs && <span className="text-teal-400">-{opp.savingsMs} ms</span>}
+                          </div>
+                          <p className="text-slate-400">{opp.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800 text-center space-y-2">
+                <p className="text-xs text-slate-400">Carregando análise do PageSpeed Insights...</p>
+                <button
+                  type="button"
+                  onClick={() => handleFetchPageSpeed('mobile')}
+                  className="px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-semibold"
+                >
+                  Executar Análise de Velocidade
+                </button>
+              </div>
+            )}
           </div>
 
           {/* SECTION: OWNER & BUSINESS INFO */}
