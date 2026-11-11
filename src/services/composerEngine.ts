@@ -133,13 +133,13 @@ Resolução adotada: Priorizar a veracidade dos fatos confirmados, proteção do
     case 'hostinger_static':
       hostingDetails = `Hostinger — Hospedagem Compartilhada / Arquivos Estáticos:
   * Publicação estática de alto desempenho: exportação dos arquivos gerados na pasta 'dist/' diretamente para a pasta 'public_html' via Git ou hPanel.
-  * Banco de Dados Nativo Hostinger: Dispensa serviços externos como Supabase ou Firebase. Leads e contatos convertem diretamente para WhatsApp oficial e e-mail corporativo. Caso o cliente exija persistência em banco relacional, conectar diretamente ao MySQL/MariaDB nativo da própria Hostinger (já incluído no plano) ou SQLite/JSON local.
-  * PROIBIÇÃO DE SUPABASE: Não injetar dependência de Supabase, Cloud SQL ou serviços em nuvem externos desnecessários que exijam contratação ou chaves adicionais.`;
+  * Banco de Dados Nativo Hostinger: Utiliza exclusivamente a infraestrutura nativa da Hostinger. Leads e contatos convertem diretamente para WhatsApp oficial e e-mail corporativo. Caso o cliente exija persistência em banco relacional, conectar diretamente ao MySQL ou MariaDB nativo da própria Hostinger (já incluído no plano hPanel) ou SQLite/JSON local.
+  * Soberania e Autonomia Total: Arquitetura 100% autônoma e otimizada para o servidor da Hostinger, sem dependência de plataformas externas de banco de dados nem custos extras.`;
       break;
     case 'hostinger_vps':
       hostingDetails = `Hostinger — Cloud / VPS / Node.js:
   * Suporte tanto a arquivos estáticos quanto a execução de Node.js/Docker caso o cliente demande rotas de API server-side ou SSR dinâmico.
-  * Banco de Dados Nativo Hostinger: Utilizar o MySQL, PostgreSQL ou MariaDB nativo instalado na Hostinger (ou SQLite local de alto desempenho). É terminantemente proibido exigir Supabase ou outros serviços externos.`;
+  * Banco de Dados Nativo Hostinger: Utilizar o MySQL, PostgreSQL ou MariaDB nativo instalado no servidor Hostinger (ou SQLite local de alto desempenho) com conexão direta via PDO, Drizzle, Prisma ou mysql2.`;
       break;
     case 'vercel_netlify':
       hostingDetails = `Vercel / Netlify:

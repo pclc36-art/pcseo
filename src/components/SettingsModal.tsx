@@ -182,15 +182,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
           </div>
 
-          {/* Banco de Dados Hostinger & Persistência Nativa (Zero Supabase) */}
+          {/* Banco de Dados Hostinger & Persistência Nativa */}
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2.5">
             <h3 className="font-bold text-white flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Banco de Dados Hostinger & Persistência Nativa</span>
             </h3>
             <div className="flex items-center justify-between text-[11px] pt-1">
-              <span className="text-slate-400">Status do Supabase:</span>
-              <span className="text-emerald-400 font-semibold font-mono">100% Removido / Desligado</span>
+              <span className="text-slate-400">Infraestrutura do Servidor:</span>
+              <span className="text-emerald-400 font-semibold font-mono">100% Autônomo na Hostinger</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-slate-400">Banco de Dados Recomendado:</span>
@@ -201,7 +201,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span className="text-slate-200 font-medium">IndexedDB + LocalStorage + Backups JSON</span>
             </div>
             <p className="text-[10px] text-slate-400 pt-1 leading-relaxed">
-              Sua aplicação opera de forma 100% autônoma na Hostinger, sem nenhuma dependência de Supabase, Firebase ou serviços de terceiros pagos. Os dados são salvos com soberania local e podem ser exportados/importados a qualquer momento em JSON.
+              Sua aplicação opera de forma 100% autônoma na Hostinger, utilizando diretamente a infraestrutura do seu servidor. Os dados são salvos com soberania local e podem ser exportados/importados a qualquer momento em JSON.
             </p>
           </div>
         </div>
