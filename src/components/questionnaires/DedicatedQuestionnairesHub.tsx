@@ -21,6 +21,7 @@ import {
   Upload,
   MessageSquare,
   FileCode,
+  Building2,
   X
 } from 'lucide-react';
 import {
@@ -42,12 +43,14 @@ import {
 interface DedicatedQuestionnairesHubProps {
   onNotify: (title: string, desc?: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   onGenerateDossierFromQuestionnaire?: (data: Partial<GbpQuestionnaireData>) => void;
+  onCreateSiteProject?: (briefing: string, clientName: string, projectName: string) => void;
   onBack?: () => void;
 }
 
 export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProps> = ({
   onNotify,
   onGenerateDossierFromQuestionnaire,
+  onCreateSiteProject,
   onBack,
 }) => {
   // State: selected template (null = view catalog list, or specific template id)
@@ -363,6 +366,56 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
     }
   };
 
+  // Copy structured briefing for Master Prompt
+  const handleCopyForPromptMaster = async () => {
+    if (!activeTemplate) return;
+    const businessName = answers[`${activeTemplate.id}_1`] || activeTemplate.sampleBusinessName;
+    let text = `BRIEFING ESTRATÉGICO DO CLIENTE — NICHO: ${activeTemplate.title.toUpperCase()}\n`;
+    text += `Empresa / Marca: ${businessName}\n`;
+    text += `Segmento: ${activeTemplate.title} (${activeTemplate.categoryTitle})\n`;
+    text += `Perguntas Respondidas: ${answeredCount} de ${totalQuestions}\n\n`;
+
+    activeTemplate.questions.forEach((q) => {
+      const ans = answers[q.id]?.trim();
+      text += `--- [${q.section.toUpperCase()}] ---\n`;
+      text += `${q.number}. ${q.question}\n`;
+      text += `RESPOSTA: ${ans || '[Não informado pelo cliente]'}\n\n`;
+    });
+
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      onNotify(
+        'Briefing Copiado para o Prompt Mestre!',
+        'Todas as respostas estão na área de transferência. Cole no campo de questionário de Novo Projeto para gerar o site completo.',
+        'success'
+      );
+    } else {
+      onNotify('Falha ao copiar', 'Não foi possível copiar o texto.', 'error');
+    }
+  };
+
+  // Directly create a new site project from questionnaire answers
+  const handleCreateSiteProject = () => {
+    if (!activeTemplate) return;
+    const businessName = answers[`${activeTemplate.id}_1`] || activeTemplate.sampleBusinessName;
+    let briefing = `BRIEFING ESTRATÉGICO DO CLIENTE — NICHO: ${activeTemplate.title.toUpperCase()}\n`;
+    briefing += `Empresa / Marca: ${businessName}\n`;
+    briefing += `Segmento: ${activeTemplate.title} (${activeTemplate.categoryTitle})\n\n`;
+
+    activeTemplate.questions.forEach((q) => {
+      const ans = answers[q.id]?.trim();
+      briefing += `--- [${q.section.toUpperCase()}] ---\n`;
+      briefing += `${q.number}. ${q.question}\n`;
+      briefing += `RESPOSTA: ${ans || '[Não informado pelo cliente]'}\n\n`;
+    });
+
+    if (onCreateSiteProject) {
+      onCreateSiteProject(briefing, businessName, `${activeTemplate.title} — ${businessName}`);
+    } else {
+      handleCopyForPromptMaster();
+    }
+  };
+
   // ==========================================
   // VIEW 1: CATALOG OF ALL 33 QUESTIONNAIRES
   // ==========================================
@@ -409,15 +462,15 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           <div className="relative z-10 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>33 Nichos Estratégicos • 100% Focado em Ranquear no Top 3 do Google</span>
+              <span>{ALL_33_QUESTIONNAIRES.length} Modelos Estratégicos • Perguntas Fáceis para o Cliente & Alta Conversão</span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Questionários Estratégicos para Perfil Perfeito no Google
+              Questionários Estratégicos para Sites, Landing Pages & Google
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-              Perguntas rigorosamente selecionadas para extrair apenas o que o algoritmo do Google Meu Negócio exige: 
-              <strong> Categoria Primária exata</strong>, <strong>Bairros de Maior Ticket</strong>, <strong>Palavras-chave em Alta</strong> e 
-              <strong> Catálogo Lucrativo</strong>. Com essas respostas, você monta o perfil que coloca seu cliente na parte de cima do Google!
+              Perguntas objetivas e fáceis de responder pelo cliente, sem jargões técnicos ou complicações. 
+              As respostas fornecem todas as informações úteis para o <strong>Prompt Mestre</strong> montar a estrutura completa do site 
+              (<strong>Hero, Serviços, Sobre Nós, Diferenciais, Depoimentos, FAQ e CTA de WhatsApp</strong>) e também colocar o perfil no topo das buscas!
             </p>
           </div>
         </div>
@@ -445,7 +498,7 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
                   : 'bg-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
-              Todos (33)
+              Todos ({ALL_33_QUESTIONNAIRES.length})
             </button>
             {QUESTIONNAIRE_CATEGORIES.map((c) => (
               <button
@@ -498,13 +551,25 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
                         className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 transition-all shadow-sm flex flex-col justify-between group"
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center justify-between mb-3 gap-2">
                             <span className="text-2xl p-2 bg-slate-950 rounded-xl border border-slate-800">
                               {tpl.emoji}
                             </span>
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                              {tpl.questions.length} perguntas
-                            </span>
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              {tpl.targetTool === 'landing_page' && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                                  Landing Page
+                                </span>
+                              )}
+                              {tpl.targetTool === 'gbp_pro' && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                                  GBP Pro
+                                </span>
+                              )}
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                                {tpl.questions.length} perguntas
+                              </span>
+                            </div>
                           </div>
 
                           <h3
@@ -567,7 +632,7 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Voltar aos 33 Questionários</span>
+          <span>Voltar aos {ALL_33_QUESTIONNAIRES.length} Questionários</span>
         </button>
 
         <span className="text-xs text-slate-400 font-medium">
@@ -583,9 +648,21 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
               {activeTemplate.emoji}
             </span>
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                Template Especializado • {totalQuestions} Perguntas
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  Template Especializado • {totalQuestions} Perguntas
+                </div>
+                {activeTemplate.targetTool === 'landing_page' && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
+                    Foco: Criação de Landing Page
+                  </span>
+                )}
+                {activeTemplate.targetTool === 'gbp_pro' && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+                    Foco: Google Business Profile Pro
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 {activeTemplate.title}
@@ -653,8 +730,8 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           </div>
         </div>
 
-        {/* Progress Bar Row */}
-        <div className="mt-6 pt-5 border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Progress Bar Row & Primary Action Buttons */}
+        <div className="mt-6 pt-5 border-t border-slate-800 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
               {percentCompleted}%
@@ -665,19 +742,40 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
               </div>
               <div className="text-[11px] text-slate-400">
                 {answeredCount === totalQuestions
-                  ? '✨ 100% preenchido! Perfeito para gerar o Dossiê GBP 100/100 Padrão Ouro.'
+                  ? '✨ 100% preenchido! Informações completas para montar o site ou landing page.'
                   : 'Responda as perguntas essenciais ou clique em "Preencher com Dados Reais" para testar.'}
               </div>
             </div>
           </div>
 
-          <button
-            onClick={handleTriggerDossierGeneration}
-            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-emerald-200" />
-            Gerar Dossiê GBP 100/100
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleCreateSiteProject}
+              className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-600/25 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
+              title="Abre o formulário de Novo Projeto com todas as respostas do cliente preenchidas"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-200" />
+              <span>Criar Projeto de Site / LP</span>
+            </button>
+
+            <button
+              onClick={handleCopyForPromptMaster}
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-200 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              title="Copia todas as respostas estruturadas para colar no campo de questionário do Prompt Mestre"
+            >
+              <Copy className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Copiar p/ Prompt Mestre</span>
+            </button>
+
+            <button
+              onClick={handleTriggerDossierGeneration}
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-200 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              title="Gera o dossiê de autoridade e SEO local no Google Maps"
+            >
+              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Gerar Dossiê GBP</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -821,13 +919,23 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
             Copiar Texto Limpo
           </button>
 
-          <button
-            onClick={handleTriggerDossierGeneration}
-            className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-emerald-200" />
-            Gerar Dossiê GBP 100/100
-          </button>
+          {activeTemplate.targetTool === 'landing_page' ? (
+            <button
+              onClick={handleCreateSiteProject}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/30 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-200" />
+              Criar Projeto de Landing Page
+            </button>
+          ) : (
+            <button
+              onClick={handleTriggerDossierGeneration}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-200" />
+              Gerar Dossiê GBP 100/100
+            </button>
+          )}
         </div>
       </div>
 

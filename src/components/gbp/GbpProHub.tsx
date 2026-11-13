@@ -33,6 +33,7 @@ interface GbpProHubProps {
   onClearInitialQuestionnaire?: () => void;
   initialSubTab?: 'create' | 'questionnaires' | 'audit' | 'history';
   onBack?: () => void;
+  onCreateSiteProject?: (briefing: string, clientName: string, projectName: string) => void;
 }
 
 export const GbpProHub: React.FC<GbpProHubProps> = ({
@@ -41,6 +42,7 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
   onClearInitialQuestionnaire,
   initialSubTab,
   onBack,
+  onCreateSiteProject,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'create' | 'questionnaires' | 'audit' | 'history'>(
     initialSubTab || 'create'
@@ -379,6 +381,8 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
             onGenerateDossierFromQuestionnaire={async (data) => {
               await handleGenerateDossier(data as GbpQuestionnaireData);
             }}
+            onCreateSiteProject={onCreateSiteProject}
+            onBack={onBack}
           />
         </div>
       )}

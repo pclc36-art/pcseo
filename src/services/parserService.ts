@@ -17,21 +17,29 @@ export function parseQuestionnaireHeuristic(
       const line = lines[i];
       for (const pat of patterns) {
         if (pat.test(line)) {
-          // If answer is on the same line after colon/dash
-          const split = line.split(/[:\-–—]\s*/);
-          if (split.length > 1 && split.slice(1).join(' ').trim().length > 1) {
-            return split.slice(1).join(' ').trim();
+          // Check if this is a question line ending with '?' or followed by RESPOSTA:
+          const hasQuestionMark = line.includes('?');
+          if (!hasQuestionMark) {
+            const split = line.split(/[:\-–—]\s*/);
+            if (split.length > 1 && split.slice(1).join(' ').trim().length > 1) {
+              return split.slice(1).join(' ').trim();
+            }
           }
-          // Otherwise look at following lines until next question/bullet
+          // Otherwise look at following lines until next question/section header
           const collected: string[] = [];
           let j = i + 1;
           while (j < lines.length) {
             const nextLine = lines[j];
-            // Stop if next line looks like a question or new section number
-            if (/^(?:\d+[\.\)]|[a-zA-ZÀ-ÿ\s]{3,30}:)/.test(nextLine) && !/^[\-\*•]/.test(nextLine)) {
+            const cleanNext = nextLine.replace(/^RESPOSTA\s*:\s*/i, '').trim();
+            if (/^---/.test(nextLine) || /^\d+[\.\)]\s/.test(nextLine)) {
               break;
             }
-            collected.push(nextLine);
+            if (!/^RESPOSTA\s*:/i.test(nextLine) && /^[a-zA-ZÀ-ÿ\s]{3,28}:/.test(nextLine) && !/^[\-\*•]/.test(nextLine)) {
+              break;
+            }
+            if (cleanNext && cleanNext !== '[Não informado pelo cliente]') {
+              collected.push(cleanNext);
+            }
             j++;
           }
           if (collected.length > 0) {
@@ -47,7 +55,8 @@ export function parseQuestionnaireHeuristic(
   let extractedClient = clientNameHint?.trim() || '';
   if (!extractedClient) {
     const nameMatch = findAnswerTo([
-      /nome(?:\s+do\s+profissional|\s+da\s+empresa|\s+do\s+cliente)?/i,
+      /empresa\s*\/\s*marca/i,
+      /nome(?:\s+exato|\s+comercial|\s+do\s+profissional|\s+da\s+marca|\s+da\s+empresa|\s+do\s+cliente)?/i,
       /quem\s+(?:é|somos)/i,
     ]);
     if (nameMatch) {
@@ -60,7 +69,7 @@ export function parseQuestionnaireHeuristic(
 
   // 2. Niche & Segment
   let niche = findAnswerTo([
-    /nicho|segmento|área\s+de\s+atuação|especialidade/i,
+    /nicho|segmento|área\s+de\s+atuação|especialidade\s+principal/i,
     /o\s+que\s+vocês\s+fazem/i,
     /ramo/i,
   ]);
@@ -71,10 +80,20 @@ export function parseQuestionnaireHeuristic(
       niche = 'Advocacia e Assessoria Jurídica';
     } else if (/arquitet|design de interiores|urbanismo/i.test(text)) {
       niche = 'Arquitetura e Design de Interiores';
-    } else if (/clínica|médic|médic[ao]|saúde|dermatolog/i.test(text)) {
-      niche = 'Saúde e Medicina Especializada';
+    } else if (/estét|botox|harmonização|bioestimulador/i.test(text)) {
+      niche = 'Estética Avançada e Bem-estar';
+    } else if (/clínica|médic|médic[ao]|saúde|dermatolog|cardiolog|fisioterap|psicólog|nutricion/i.test(text)) {
+      niche = 'Saúde e Atendimento Clínico';
+    } else if (/restaurante|pizzaria|bistrô|cafeteria|confeitaria|bar\s|pub/i.test(text)) {
+      niche = 'Gastronomia e Food Service';
+    } else if (/imobiliári|imóve|creci/i.test(text)) {
+      niche = 'Mercado Imobiliário';
+    } else if (/construt|engenharia|crea/i.test(text)) {
+      niche = 'Construção Civil e Engenharia';
+    } else if (/contabil|contador|crc/i.test(text)) {
+      niche = 'Contabilidade e Finanças';
     } else if (/software|saas|tecnologia|growth|marketing|tráfego/i.test(text)) {
-      niche = 'Tecnologia B2B e Growth Marketing';
+      niche = 'Tecnologia B2B e SaaS';
     } else if (/paisagism|jardim|plantas/i.test(text)) {
       niche = 'Paisagismo e Jardinagem';
     } else {
@@ -84,19 +103,18 @@ export function parseQuestionnaireHeuristic(
 
   // 3. Services
   const servicesRaw = findAnswerTo([
-    /principais\s+serviços|serviços(?:\s+oferecidos)?|o\s+que\s+oferece/i,
-    /produtos|soluções/i,
+    /principais\s+serviços|causas\s+ou\s+serviços|serviços(?:\s+oferecidos)?|o\s+que\s+oferece/i,
+    /produtos|soluções|cardápio/i,
   ]);
   const services: string[] = [];
   if (servicesRaw) {
     const items = servicesRaw
-      .split(/\n|(?:\d+[\.\)]\s*)|(?:[;•\-])/)
+      .split(/\n|(?:\d+[\.\)]\s*)|(?:[;•])/)
       .map((s) => s.replace(/^[0-9\.\-\*•\s]+/, '').trim())
       .filter((s) => s.length > 2);
     services.push(...items);
   }
   if (services.length === 0) {
-    // try to find lines starting with bullets or numbers
     const serviceLines = lines.filter((l) => /^[1-9]\.\s+[A-ZÀ-ÿ]|^[\-•]\s+[A-ZÀ-ÿ]/.test(l));
     if (serviceLines.length > 0 && serviceLines.length <= 8) {
       services.push(...serviceLines.map((l) => l.replace(/^[0-9\.\-\*•\s]+/, '').trim()));
@@ -105,20 +123,20 @@ export function parseQuestionnaireHeuristic(
 
   // 4. Target Audience
   const targetAudienceRaw = findAnswerTo([
-    /público(?:\-|\s*)alvo|cliente\s+ideal|para\s+quem\s+é/i,
+    /público(?:\-|\s*)alvo|cliente\s+ideal|para\s+quem\s+é|faixa\s+etária/i,
     /perfil\s+do\s+cliente/i,
   ]);
   const targetAudience = targetAudienceRaw || 'Não informado';
 
   // 5. Physical Location / Address
   const addressRaw = findAnswerTo([
-    /endereço|localização|onde\s+fica|onde\s+é\s+realizado|atendimento\s+presencial/i,
+    /onde\s+o\s+cliente\s+é\s+atendido|atende\s+presencialmente|endereço|localização|onde\s+fica|onde\s+é\s+realizado/i,
     /onde\s+atendem/i,
   ]);
 
-  const hasExplicitNoPhysical = /(?:não\s+temos\s+endereço|100%\s*remot[oa]|sem\s+ponto\s+físico|atendimento\s+em\s+domicílio|não\s+temos\s+loja\s+física|sem\s+loja\s+física|não\s+colocar\s+mapa)/i.test(
+  const hasExplicitNoPhysical = /(?:não\s+temos\s+endereço|100%\s*remot[oa]|100%\s*online|100%\s*digital|sem\s+ponto\s+físico|atendimento\s+em\s+domicílio|não\s+temos\s+loja\s+física|sem\s+loja\s+física|não\s+colocar\s+mapa)/i.test(
     text
-  );
+  ) && !/(?:presencial.*(?:rua|av\.|avenida|alameda|rodovia|estrada|cep))/i.test(text);
 
   let hasPhysicalLocation = false;
   let address = 'Não informado';
@@ -126,7 +144,7 @@ export function parseQuestionnaireHeuristic(
   if (hasExplicitNoPhysical) {
     hasPhysicalLocation = false;
     address = addressRaw || 'Operação 100% remota / Sem atendimento presencial ao público';
-  } else if (addressRaw && addressRaw.length > 10 && !/não\s+temos|em\s+reforma|remoto/i.test(addressRaw)) {
+  } else if (addressRaw && addressRaw.length > 10 && !/não\s+temos|em\s+reforma|100%\s*remoto/i.test(addressRaw)) {
     hasPhysicalLocation = true;
     address = addressRaw;
   } else if (addressRaw) {
@@ -138,10 +156,10 @@ export function parseQuestionnaireHeuristic(
     /região\s+de\s+atendimento|área\s+atendida|onde\s+atende|cidades?\s+atendidas?/i,
   ]);
   if (!serviceRegion) {
-    const locMatch = text.match(/(?:em|no|na)\s+([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+)*(?:\s*-\s*[A-Z]{2})?)/);
-    if (locMatch && !/Google|WhatsApp|Instagram|Linkedin/i.test(locMatch[1])) {
+    const locMatch = text.match(/(?:em|no|na)\s+([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+)*(?:\s*[-\/]\s*[A-Z]{2})?)/);
+    if (locMatch && !/Google|WhatsApp|Instagram|Linkedin|Brasil/i.test(locMatch[1])) {
       serviceRegion = locMatch[1];
-    } else if (/brasil/i.test(text)) {
+    } else if (/todo\s+o\s+brasil/i.test(text)) {
       serviceRegion = 'Brasil (Nacional)';
     } else {
       serviceRegion = 'Não informado';
@@ -149,7 +167,7 @@ export function parseQuestionnaireHeuristic(
   }
 
   // 7. WhatsApp & Phone
-  const whatsappMatch = text.match(/(?:whats(?:app)?|celular|fone|tel)?[:\s]*(\+?55\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}|\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})/i);
+  const whatsappMatch = text.match(/(?:whats(?:app)?|celular|fone|tel)[^:\n]*[:\s]*(\+?55\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}|\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})/i);
   let whatsapp = 'Não informado';
   let hasWhatsApp = false;
   if (whatsappMatch && whatsappMatch[1]) {
@@ -166,9 +184,12 @@ export function parseQuestionnaireHeuristic(
 
   // 9. Social Links
   const socialLinks: string[] = [];
-  const instaMatch = text.match(/@([a-zA-Z0-9._]+)|instagram\.com\/([a-zA-Z0-9._]+)/i);
+  const instaMatch = text.match(/(?:instagram|youtube\/instagram)[^:\n]*[:\s]*@?([a-zA-Z0-9._]+)|@([a-zA-Z0-9._]{3,})/i);
   if (instaMatch) {
-    socialLinks.push(`Instagram: @${instaMatch[1] || instaMatch[2]}`);
+    const handle = instaMatch[1] || instaMatch[2];
+    if (handle && !/\.com|\.br/.test(handle)) {
+      socialLinks.push(`Instagram: @${handle}`);
+    }
   }
   const linkedinMatch = text.match(/linkedin\.com\/[^\s]+/i);
   if (linkedinMatch) {
@@ -177,7 +198,7 @@ export function parseQuestionnaireHeuristic(
 
   // 10. Commercial Goals
   const goalsRaw = findAnswerTo([
-    /objetivos?(?:\s+comerciais)?|o\s+que\s+espera\s+do\s+site|meta/i,
+    /objetivos?(?:\s+comerciais)?|o\s+que\s+espera\s+do\s+site|meta|próximo\s+passo\s+ideal/i,
   ]);
   const businessGoals: string[] = [];
   if (goalsRaw) {
@@ -191,7 +212,7 @@ export function parseQuestionnaireHeuristic(
 
   // 11. Differentials
   const diffRaw = findAnswerTo([
-    /diferenciais|por\s+que\s+escolher|vantagens|diferencial/i,
+    /diferenciais|por\s+que\s+escolher|vantagens|diferencial|história\s+resumida/i,
   ]);
   const differentials: string[] = [];
   if (diffRaw) {
@@ -205,7 +226,7 @@ export function parseQuestionnaireHeuristic(
 
   // 12. Audience Pain Points
   const painRaw = findAnswerTo([
-    /dores|medos|objeções|desafios\s+do\s+cliente/i,
+    /dores|medos|objeções|desafios\s+do\s+cliente|problema\s+mais\s+urgente/i,
   ]);
   const audiencePainPoints: string[] = [];
   if (painRaw) {
@@ -219,7 +240,7 @@ export function parseQuestionnaireHeuristic(
 
   // 13. Benefits & Transformation
   const benefitsRaw = findAnswerTo([
-    /benefícios|transformação|resultados/i,
+    /benefícios|transformação|resultados|frase\s+curta\s+e\s+direta|segurança\s+ou\s+solução/i,
   ]);
   const benefitsAndTransformation: string[] = [];
   if (benefitsRaw) {
@@ -233,11 +254,11 @@ export function parseQuestionnaireHeuristic(
 
   // 14. Visual Identity & Preferences
   const visualRaw = findAnswerTo([
-    /identidade\s+visual|cores|preferências\s+de\s+design|estilo\s+visual/i,
+    /identidade\s+visual|com\s+a\s+sua\s+cara|cores\s+e\s+estilo\s+visual|preferências\s+de\s+design|estilo\s+visual/i,
   ]);
-  const hasLogo = /logotipo\s+já\s+existe|temos\s+logo|logo:\s*sim/i.test(text);
-  const colorMatches = text.match(/(?:#[0-9a-fA-F]{3,6}|verde|dourado|azul|preto|branco|cinza|champagne|grafite|neon)[^,;\n.]*/gi);
-  const primaryColors = visualRaw || (colorMatches ? colorMatches.slice(0, 4).join(', ') : 'Não informado');
+  const hasLogo = /logotipo\s+(?:já\s+existe|pronto|vetorial|em\s+alta)|temos\s+logo|logo\s+e\s+fotos|logo\s+pronto|logo:\s*sim/i.test(text);
+  const colorMatches = text.match(/(?:#[0-9a-fA-F]{3,6}|verde|dourado|azul|preto|branco|cinza|champagne|grafite|neon|ros[êé]|vinho|terracota|âmbar|marrom|bege|laranja)/gi);
+  const primaryColors = visualRaw || (colorMatches ? Array.from(new Set(colorMatches)).slice(0, 4).join(', ') : 'Não informado');
 
   // 15. References & Inspirations
   const refsRaw = findAnswerTo([
@@ -255,20 +276,20 @@ export function parseQuestionnaireHeuristic(
 
   // 16. Mandatory Content / Regulations
   const mandatoryRaw = findAnswerTo([
-    /requisitos\s+legais|regulamentação|cro|oab|crm|cnpj|registro\s+profissional/i,
+    /requisitos\s+legais|regulamentação|registro\s+profissional/i,
   ]);
   const mandatoryContent: string[] = [];
   if (mandatoryRaw) {
     mandatoryContent.push(mandatoryRaw);
   }
-  const councilMatch = text.match(/(?:CRO|CRM|OAB|CREA|COREN)[-\s]*[A-Z]{0,2}\s*[\d\.\/-]+/i);
+  const councilMatch = text.match(/(?:CRO|CRM|RQE|OAB|CREA|COREN|CRECI|CAU|CRP|CRN|CRBM|CRC|CREFITO)[-\/\s]*[A-Z]{0,2}\s*[0-9A-Z\.\/-]+/i);
   if (councilMatch) {
     mandatoryContent.push(`Registro Profissional Obrigatório: ${councilMatch[0]}`);
   }
 
   // 17. Social Proof
   const socialProofRaw = findAnswerTo([
-    /provas?\s+socia(?:l|is)|depoimentos|avaliações|números/i,
+    /provas?\s+socia(?:l|is)|depoimentos|avaliações\s+no\s+google|resultados,\s*números/i,
   ]);
   const hasRealProof = socialProofRaw && !/ainda\s+não|não\s+temos|nenhum/i.test(socialProofRaw) ? true : false;
   const testimonials: string[] = [];

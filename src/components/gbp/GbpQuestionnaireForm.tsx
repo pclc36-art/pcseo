@@ -102,9 +102,10 @@ export const GbpQuestionnaireForm: React.FC<GbpQuestionnaireFormProps> = ({
   const [selectedNicheId, setSelectedNicheId] = useState<string>('clinica_estetica');
   const [isProcessingPaste, setIsProcessingPaste] = useState(false);
 
-  // Browse 33 Niches State
+  // Browse GBP-compatible Niches State (exclude LP-only templates)
+  const gbpQuestionnaires = ALL_33_QUESTIONNAIRES.filter((t) => t.targetTool !== 'landing_page');
   const [browseCategoryKey, setBrowseCategoryKey] = useState<string>('all');
-  const [activeNicheTemplate, setActiveNicheTemplate] = useState<QuestionnaireTemplate>(ALL_33_QUESTIONNAIRES[0]);
+  const [activeNicheTemplate, setActiveNicheTemplate] = useState<QuestionnaireTemplate>(gbpQuestionnaires[0]);
   const [nicheAnswers, setNicheAnswers] = useState<Record<string, string>>({});
 
   // Manual Form States
@@ -256,9 +257,9 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
     handleCopyText(text, 'whatsapp_questions', `Questionário completo de ${activeNicheTemplate.title}`);
   };
 
-  // Generate directly from the 33-niche interactive form
+  // Generate directly from the interactive GBP niche form
   const handleGenerateFromNicheRunner = () => {
-    const pkg = getGbpNichePackage(activeNicheTemplate.title);
+    const pkg = getGbpNichePackage(activeNicheTemplate.id) || getGbpNichePackage(activeNicheTemplate.title);
     const bName = nicheAnswers[`${activeNicheTemplate.id}_1`] || activeNicheTemplate.sampleBusinessName;
     const clientCity = 'São Paulo';
 
@@ -361,7 +362,7 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
               }`}
             >
               <BookOpen className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
-              <span>33 Nichos</span>
+              <span>Modelos ({gbpQuestionnaires.length})</span>
             </button>
 
             <button
@@ -531,7 +532,7 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-indigo-400" />
-                Os 33 Nichos com Perguntas Estratégicas para Ranquear no Google
+                {gbpQuestionnaires.length} Questionários Estratégicos para Ranquear no Google Maps
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Envie o questionário direto para o WhatsApp do cliente ou teste com respostas prontas.
@@ -579,28 +580,31 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
                   : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              Todos (33)
+              Todos ({gbpQuestionnaires.length})
             </button>
-            {QUESTIONNAIRE_CATEGORIES.map((cat) => (
-              <button
-                key={cat.key}
-                onClick={() => setBrowseCategoryKey(cat.key)}
-                className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 flex-shrink-0 ${
-                  browseCategoryKey === cat.key
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>{cat.emoji}</span>
-                <span>{cat.title}</span>
-                <span className="text-[10px] opacity-75">({cat.templateCount})</span>
-              </button>
-            ))}
+            {QUESTIONNAIRE_CATEGORIES.map((cat) => {
+              const catCount = cat.templates.filter((t) => t.targetTool !== 'landing_page').length;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setBrowseCategoryKey(cat.key)}
+                  className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                    browseCategoryKey === cat.key
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>{cat.emoji}</span>
+                  <span>{cat.title}</span>
+                  <span className="text-[10px] opacity-75">({catCount})</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Horizontal Niche Selector Carousel / Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1 scrollbar-thin">
-            {ALL_33_QUESTIONNAIRES.filter(
+            {gbpQuestionnaires.filter(
               (t) => browseCategoryKey === 'all' || t.categoryKey === browseCategoryKey
             ).map((template) => {
               const isSelected = activeNicheTemplate.id === template.id;

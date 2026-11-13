@@ -21,6 +21,7 @@ export interface QuestionnaireTemplate {
   defaultPrimaryCategory: string;
   suggestedSecondaryCategories: string[];
   sampleBusinessName: string;
+  targetTool?: 'landing_page' | 'gbp_pro' | 'all';
   questions: NicheQuestionItem[];
 }
 

@@ -13,6 +13,11 @@ import {
 } from 'lucide-react';
 import { HostingTarget, ProjectType, TargetPlatform, TestScenario } from '../types';
 import { TEST_SCENARIOS } from '../data/testScenarios';
+import {
+  ALL_33_QUESTIONNAIRES,
+  QuestionnaireTemplate,
+  getQuestionnaireById,
+} from '../data/questionnaires';
 
 interface NewProjectViewProps {
   onAnalyze: (formData: {
@@ -53,7 +58,10 @@ export const NewProjectView: React.FC<NewProjectViewProps> = ({
   const [preferredFramework, setPreferredFramework] = useState(initialValues?.preferredFramework || 'Astro (Astro-First)');
   const [questionnaire, setQuestionnaire] = useState(initialValues?.questionnaire || '');
   const [additionalNotes, setAdditionalNotes] = useState(initialValues?.additionalNotes || '');
+  const [selectedNicheId, setSelectedNicheId] = useState<string>('advogado_individual_lp');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const siteQuestionnaires = ALL_33_QUESTIONNAIRES.filter((q) => q.targetTool !== 'gbp_pro');
 
   const projectTypes: { value: ProjectType; label: string; desc: string }[] = [
     { value: 'landing_page', label: 'Landing page', desc: 'Foco exclusivo em conversão direta de uma oferta única' },
@@ -112,6 +120,75 @@ export const NewProjectView: React.FC<NewProjectViewProps> = ({
     if (sc.preferredFramework) setPreferredFramework(sc.preferredFramework);
     setQuestionnaire(sc.questionnaire);
     setAdditionalNotes(sc.notes);
+    setErrorMsg('');
+  };
+
+  const inferProjectTypeForNiche = (tpl: QuestionnaireTemplate): ProjectType => {
+    if (
+      [
+        'advogado_individual_lp',
+        'escritorio_advocacia',
+        'consultoria_empresarial',
+        'contabilidade',
+        'medico_lp',
+        'fisioterapeuta_lp',
+        'psicologo',
+        'nutricionista',
+      ].includes(tpl.id)
+    ) {
+      return 'professional';
+    }
+    if (['clinica_estetica', 'clinica_medica', 'clinica_odontologica'].includes(tpl.id)) {
+      return 'clinic';
+    }
+    if (['arquitetura_interiores', 'fotografo', 'artista_banda'].includes(tpl.id)) {
+      return 'portfolio';
+    }
+    if (['loja_roupas_moda', 'joalheria_relojoaria'].includes(tpl.id)) {
+      return 'ecommerce';
+    }
+    if (tpl.id === 'startup_saas' || tpl.targetTool === 'landing_page') {
+      return 'landing_page';
+    }
+    return 'local_business';
+  };
+
+  // Load any niche questionnaire (blank questions or complete realistic example)
+  const handleLoadNicheQuestionnaire = (nicheId: string, withSampleAnswers: boolean) => {
+    const tpl = getQuestionnaireById(nicheId);
+    if (!tpl) return;
+
+    const formatted = [
+      `BRIEFING ESTRATÉGICO DO CLIENTE — NICHO: ${tpl.title.toUpperCase()}`,
+      withSampleAnswers ? `Empresa / Marca: ${tpl.sampleBusinessName}` : '',
+      `Segmento: ${tpl.title} (${tpl.categoryTitle})`,
+      '',
+      ...tpl.questions.map((q) =>
+        withSampleAnswers
+          ? `--- [${q.section.toUpperCase()}] ---\n${q.number}. ${q.question}\nRESPOSTA: ${q.sampleAnswer || ''}`
+          : `--- [${q.section.toUpperCase()}] ---\n${q.number}. ${q.question}\nRESPOSTA: `
+      ),
+    ]
+      .filter((line, idx) => !(idx === 1 && line === ''))
+      .join('\n\n');
+
+    setProjectType(inferProjectTypeForNiche(tpl));
+    if (withSampleAnswers) {
+      setName(`${tpl.title} — ${tpl.sampleBusinessName}`);
+      setClientName(tpl.sampleBusinessName);
+      setAdditionalNotes(
+        `Briefing completo de demonstração do nicho ${tpl.title} (${tpl.categoryTitle}) pronto para geração com o Prompt Mestre.`
+      );
+    } else {
+      setName(`Site / LP — ${tpl.title}`);
+      setClientName('');
+      setAdditionalNotes(
+        tpl.id === 'advogado_individual_lp' || tpl.id === 'escritorio_advocacia'
+          ? 'Conformidade ética OAB (Provimento 205/2021): evitar promessas de causa ganha e destacar registro na OAB.'
+          : `Questionário objetivo do nicho ${tpl.title} para criação de site ou landing page.`
+      );
+    }
+    setQuestionnaire(formatted);
     setErrorMsg('');
   };
 
@@ -186,23 +263,70 @@ export const NewProjectView: React.FC<NewProjectViewProps> = ({
       </div>
 
       {/* Test Scenarios Presets Banner */}
-      <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60">
+      <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Testar com briefing oficial:</span>
+            <span>Modelos & briefings prontos:</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {TEST_SCENARIOS.map((sc, i) => (
-              <button
-                key={sc.id}
-                type="button"
-                onClick={() => handleLoadScenario(sc)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer"
-              >
-                Cenário {i + 1} ({sc.projectType === 'landing_page' ? 'Local' : sc.projectType === 'service_page' ? 'Remoto' : 'Lacunas'})
-              </button>
+            {TEST_SCENARIOS.map((sc, i) => {
+              const label =
+                sc.id === 'scenario_4_advogado_individual_lp'
+                  ? '👨‍⚖️ Advogado Individual (LP)'
+                  : `Cenário ${i + 1} (${sc.projectType === 'landing_page' ? 'Local' : sc.projectType === 'service_page' ? 'Remoto' : 'Lacunas'})`;
+              return (
+                <button
+                  key={sc.id}
+                  type="button"
+                  onClick={() => handleLoadScenario(sc)}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                    sc.id === 'scenario_4_advogado_individual_lp'
+                      ? 'bg-cyan-950/60 hover:bg-cyan-900/70 border-cyan-500/40 text-cyan-200'
+                      : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Universal Niche Questionnaire Selector for Site / LP */}
+        <div className="pt-3 border-t border-slate-800/80 flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-300 shrink-0">
+            <FileText className="w-4 h-4 text-indigo-400" />
+            <span>Carregar questionário de qualquer nicho:</span>
+          </div>
+          <select
+            value={selectedNicheId}
+            onChange={(e) => setSelectedNicheId(e.target.value)}
+            className="flex-1 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 focus:border-cyan-500 text-xs text-white"
+          >
+            {siteQuestionnaires.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.emoji} {tpl.title} — {tpl.categoryTitle} ({tpl.questions.length} perguntas)
+              </option>
             ))}
+          </select>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleLoadNicheQuestionnaire(selectedNicheId, false)}
+              className="px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/70 border border-indigo-500/40 text-indigo-200 text-xs font-medium transition-all cursor-pointer"
+              title="Carrega as perguntas em branco do nicho selecionado para preencher com dados reais do cliente"
+            >
+              Roteiro em Branco
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLoadNicheQuestionnaire(selectedNicheId, true)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 text-xs font-medium transition-all cursor-pointer"
+              title="Preenche o questionário do nicho selecionado com dados de exemplo prontos para testar o Prompt Mestre"
+            >
+              Exemplo Completo
+            </button>
           </div>
         </div>
       </div>

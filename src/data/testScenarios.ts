@@ -155,5 +155,59 @@ Temos fotos tiradas pelo celular das obras recentes.
 Observação extra do cliente:
 Preciso que o site fique pronto rápido porque a primavera tá chegando e o pessoal procura bastante.`,
     notes: 'TESTE DE CONTROLE DE QUALIDADE: Testar se o sistema sinaliza com precisão as lacunas (sem logo vetorial, sem depoimentos formais comprovados, sem endereço fixo presencial), preserva os dados existentes (Curitiba e região, atendimento em domicílio com orçamento gratuito) e não inventa dados inexistentes.'
+  },
+  {
+    id: 'scenario_4_advogado_individual_lp',
+    name: 'Dr. Rafael Nogueira — Advogado Individual (LP)',
+    description: 'Dr. Rafael Nogueira (OAB/SP 384.910) — Advocacia Trabalhista e Previdenciária. Landing Page pessoal focada em atendimento direto e ética OAB.',
+    projectType: 'professional',
+    targetPlatform: 'ai_site_builder',
+    hostingTarget: 'hostinger_static',
+    preferredFramework: 'Astro (Astro-First)',
+    questionnaire: `QUESTIONÁRIO DE BRIEFING — ADVOGADO INDIVIDUAL (LANDING PAGE)
+
+1. Nome profissional completo, OAB e especialidade principal:
+Dr. Rafael Nogueira — OAB/SP 384.910 — Advogado Especialista em Direito Trabalhista e Previdenciário.
+
+2. Principal segurança ou solução entregue ao cliente (Headline Hero):
+Atuação jurídica estratégica na defesa de trabalhadores e segurados do INSS, com análise transparente e atendimento direto com o advogado titular.
+
+3. Cliente ideal e problema mais urgente:
+Profissionais CLT, bancários e segurados do INSS entre 28 e 60 anos que sofreram demissão irregular, não receberam horas extras ou tiveram aposentadoria negada ou calculada abaixo do devido.
+
+4. Principais causas e serviços jurídicos prioritários:
+1. Revisão de Rescisão e Reconhecimento de Vínculo Trabalhista
+2. Cobrança de Horas Extras Bancárias e Adicional de Insalubridade/Periculosidade
+3. Planejamento, Concessão e Revisão de Aposentadoria e Auxílio-Doença no INSS
+4. Acidente de Trabalho e Indenização por Danos Morais
+
+5. Trajetória e formação acadêmica:
+Advogado atuante há 12 anos, graduado pela USP e pós-graduado em Direito e Processo do Trabalho pela PUC-SP, com mais de 600 atendimentos realizados e atendimento conduzido pessoalmente do início ao fim.
+
+6. Passo a passo do atendimento e tempo de resposta:
+1. Clique no WhatsApp para triagem rápida em até 15 minutos no horário comercial;
+2. Envio seguro de documentos digitais (CTPS, holerites ou CNIS);
+3. Reunião individual por videoconferência ou presencial com parecer técnico claro sobre viabilidade e próximos passos.
+
+7. Formato de atendimento e endereço físico:
+Atendimento presencial com hora marcada na Av. Paulista, 1439, Conj. 84 — Bela Vista, São Paulo/SP, CEP 01311-200, e atendimento 100% digital em todo o Brasil via processo eletrônico (PJe).
+
+8. Diferenciais éticos conforme Código de Ética da OAB:
+Atendimento direto com o Dr. Rafael sem repassar para terceiros, linguagem simples sem juridiquês, atualizações proativas a cada movimentação relevante e sigilo profissional absoluto (sem promessas de causa ganha).
+
+9. Provas sociais e credibilidade pública:
+Avaliação média 5.0 no Google Meu Negócio com mais de 85 comentários elogiando transparência e agilidade, além de artigos publicados em portais jurídicos.
+
+10. Dúvidas frequentes (FAQ):
+- Preciso ir presencialmente? Não, todo o atendimento pode ser feito online com segurança jurídica.
+- A empresa onde trabalho saberá da consulta? Não, todo contato é protegido pelo sigilo da advocacia.
+- Como funciona a consulta jurídica? Analisamos documentos e explicamos honorários de forma clara conforme a tabela da OAB.
+
+11. Contatos oficiais e CTA:
+WhatsApp: (11) 98765-4321 | E-mail: contato@rafaelnogueira.adv.br | Seg a Sex, 08:30 às 18:30 | Botão principal: "Falar com o Dr. Rafael no WhatsApp".
+
+12. Identidade visual e materiais:
+Azul Marinho (#0F1E36), Dourado acetinado (#C9A24D) e Off-White (#F8F7F4). Estilo editorial minimalista. Possui 4 fotos profissionais em estúdio e logotipo vetorial.`,
+    notes: 'Respeitar integralmente o Provimento 205/2021 da OAB (sem promessas de resultado garantido ou captação mercantilista), destacar a OAB/SP 384.910 no topo e no rodapé e manter foco no atendimento pessoal pelo Dr. Rafael.'
   }
 ];

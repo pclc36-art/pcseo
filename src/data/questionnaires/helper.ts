@@ -13,6 +13,7 @@ export function buildTemplate(config: {
   defaultPrimaryCategory: string;
   suggestedSecondaryCategories: string[];
   sampleBusinessName: string;
+  targetTool?: 'landing_page' | 'gbp_pro' | 'all';
   rawQuestions: Array<{
     section: string;
     question: string;
@@ -27,8 +28,8 @@ export function buildTemplate(config: {
     section: q.section,
     question: q.question,
     placeholder: q.placeholder || `Ex: Informações detalhadas sobre ${q.question.toLowerCase()}`,
-    helperText: q.helperText || 'Informação indispensável para estruturar a identidade e ranqueamento local.',
-    sampleAnswer: q.sampleAnswer || `Resposta padrão orientada a conversão e conformidade com diretrizes.`,
+    helperText: q.helperText || 'Dado real do cliente usado diretamente na criação do site ou landing page.',
+    sampleAnswer: q.sampleAnswer || 'Informação objetiva fornecida pelo cliente.',
   }));
 
   return {
@@ -36,6 +37,14 @@ export function buildTemplate(config: {
     totalQuestions: questions.length,
     questions,
   };
+}
+
+export interface NicheCustomQuestion {
+  section: string;
+  question: string;
+  placeholder: string;
+  helperText: string;
+  sampleAnswer: string;
 }
 
 export interface GbpRankingTemplateConfig {
@@ -49,96 +58,160 @@ export interface GbpRankingTemplateConfig {
   defaultPrimaryCategory: string;
   suggestedSecondaryCategories: string[];
   sampleBusinessName: string;
+  targetTool?: 'landing_page' | 'gbp_pro' | 'all';
   nicheTerminology: string;
-  sampleKeywords: string;
+  /** Prompt específico para registro profissional, credencial ou ano de fundação (ex: CRM, OAB, CRECI, CAU) */
+  credentialExample?: string;
+  /** Pergunta sob medida para o slogan/promessa principal do nicho na Hero */
+  sampleHeroPromise?: string;
+  /** Perfil do público-alvo e dor real deste nicho */
+  sampleAudiencePain?: string;
+  /** Principais serviços, produtos, cardápio ou planos */
   sampleTopServices: string;
+  /** Política de preços, planos, convênios ou formas de pagamento */
+  samplePricingPolicy?: string;
+  /** Pergunta exclusiva 1 do nicho (dados que só esse nicho precisa no site) */
+  customQuestion1?: NicheCustomQuestion;
+  /** Pergunta exclusiva 2 do nicho (dados práticos de conversão para esse nicho) */
+  customQuestion2?: NicheCustomQuestion;
+  /** História, equipe e diferenciais reais */
   sampleDifferentials: string;
+  /** Endereço completo / área atendida e horários */
+  sampleAddressAndHours?: string;
   sampleHours?: string;
+  /** Provas sociais reais deste nicho */
+  sampleSocialProof?: string;
+  /** 3 dúvidas frequentes reais dos clientes deste nicho */
   sampleFaq: string;
+  /** Contatos oficiais (WhatsApp, e-mail, Instagram, texto do CTA) */
+  sampleContacts?: string;
+  /** Paleta de cores, estilo visual, logotipo e fotos reais disponíveis */
+  sampleVisualAndAssets?: string;
+  /** Campo legado mantido por compatibilidade */
+  sampleKeywords?: string;
 }
 
+/**
+ * Construtor dos Questionários Nichados para Criação de Sites e Landing Pages.
+ * Cada nicho gera perguntas claras, diretas e fáceis de responder pelo cliente,
+ * capturando exatamente os dados, textos, diferenciais, contatos, cores e fotos
+ * que o Prompt Mestre precisa para montar um site completo e com a cara do cliente.
+ */
 export function buildGbpRankingTemplate(config: GbpRankingTemplateConfig): QuestionnaireTemplate {
-  const defaultHours = config.sampleHours || 'Segunda a Sexta: 08:00 às 18:30 | Sábado: 08:00 às 13:00';
-  
-  const rawQuestions = [
+  const defaultHours = config.sampleHours || 'Segunda a Sexta: 08:30 às 18:30 | Sábado: 08:30 às 13:00';
+  const defaultAddress =
+    config.sampleAddressAndHours ||
+    `Atendimento presencial em endereço completo (com estacionamento próximo) e suporte rápido via WhatsApp. Horários: ${defaultHours}.`;
+
+  const rawQuestions: Array<{
+    section: string;
+    question: string;
+    placeholder: string;
+    helperText: string;
+    sampleAnswer: string;
+  }> = [
     {
-      section: 'Identidade & Categoria Google',
-      question: `Qual é o nome comercial oficial da sua empresa (exatamente como deve constar no letreiro, fachada e registro)?`,
-      placeholder: `Ex: ${config.sampleBusinessName}`,
-      helperText: 'Fator NAP (Name, Address, Phone): O Google exige consistência exata do nome para validar relevância e evitar suspensões por spam de palavras-chave.',
-      sampleAnswer: config.sampleBusinessName,
+      section: 'Identidade da Marca & Primeira Dobra (Hero)',
+      question: `Qual é o nome exato da marca ou profissional que deve aparecer no topo do site${config.credentialExample ? ` (e registro profissional, se aplicável, ex: ${config.credentialExample})` : ''}?`,
+      placeholder: `Ex: ${config.sampleBusinessName}${config.credentialExample ? ` (${config.credentialExample})` : ''}`,
+      helperText: 'Define o título da marca no cabeçalho, metadados do Google e rodapé oficial.',
+      sampleAnswer: `${config.sampleBusinessName}${config.credentialExample ? ` — ${config.credentialExample}` : ''}.`,
     },
     {
-      section: 'Identidade & Categoria Google',
-      question: `Qual é a especialidade ou serviço principal que define sua atividade central no Google Maps em ${config.nicheTerminology}?`,
-      placeholder: `Ex: ${config.defaultPrimaryCategory} (Secundárias: ${config.suggestedSecondaryCategories.slice(0, 2).join(', ')})`,
-      helperText: 'A Categoria Primária é o maior fator isolado de ranqueamento no algoritmo de busca local do Google (pesa mais de 60% na relevância).',
-      sampleAnswer: `${config.defaultPrimaryCategory} especializada em ${config.nicheTerminology}.`,
+      section: 'Identidade da Marca & Primeira Dobra (Hero)',
+      question: `Em uma frase curta e direta, o que você faz de melhor e qual o principal benefício que o cliente encontra ao contratar você?`,
+      placeholder: `Ex: ${config.sampleHeroPromise || `Referência em ${config.nicheTerminology} com atendimento ágil, personalizado e seguro.`}`,
+      helperText: 'Vira a Headline (título principal) e o subtítulo da primeira tela da Landing Page ou Site.',
+      sampleAnswer:
+        config.sampleHeroPromise ||
+        `Soluções especializadas em ${config.nicheTerminology} para quem busca qualidade, agilidade e confiança.`,
     },
     {
-      section: 'Geolocalização & Bairros de Maior Ticket',
-      question: `Qual é o endereço físico completo e quais são os 3 a 5 bairros ou cidades vizinhas de maior ticket que você deseja atrair nas buscas?`,
-      placeholder: 'Ex: Av. Principal, 1500 - Centro. Bairros prioritários: Jardins, Vila Nova, Bairro Nobre e Centro.',
-      helperText: 'Alimenta o raio de geolocalização e as Áreas de Cobertura (Service Areas) no Google Maps para que seu perfil apareça em múltiplas regiões.',
-      sampleAnswer: 'Endereço centralizado com atendimento prioritário aos bairros nobres e região metropolitana.',
+      section: 'Público-Alvo & Oferta Principal',
+      question: `Quem é o cliente ideal que você quer atrair e qual é a necessidade ou problema mais urgente que faz ele procurar ${config.nicheTerminology}?`,
+      placeholder: `Ex: ${config.sampleAudiencePain || `Clientes da região que buscam ${config.nicheTerminology} com confiança e atendimento rápido.`}`,
+      helperText: 'Orienta toda a argumentação persuasiva da página para conectar com a dor real do visitante.',
+      sampleAnswer:
+        config.sampleAudiencePain ||
+        `Pessoas e empresas exigentes que valorizam qualidade, transparência e atendimento humanizado.`,
     },
     {
-      section: 'Palavras-Chave de Busca Local em Alta',
-      question: `Quais são as principais palavras ou termos exatos que seu cliente digita no Google Maps quando está pronto para contratar ou comprar?`,
-      placeholder: `Ex: ${config.sampleKeywords}`,
-      helperText: 'Termos de alta intenção comercial que serão integrados organicamente na descrição oficial de 750 caracteres, produtos e postagens semanais.',
-      sampleAnswer: config.sampleKeywords,
-    },
-    {
-      section: 'Catálogo de Serviços & Margem',
-      question: `Quais são os seus 3 a 5 serviços ou produtos prioritários (os mais lucrativos e procurados), com preços ou faixa de valor?`,
+      section: 'Público-Alvo & Oferta Principal',
+      question: `Quais são os 3 a 6 principais serviços, produtos ou soluções que devem ganhar destaque no site (com breve explicação de cada um)?`,
       placeholder: `Ex: ${config.sampleTopServices}`,
-      helperText: 'Serão cadastrados individualmente com fotos e descrições ricas em SEO na aba de Serviços e Produtos do Google Meu Negócio.',
+      helperText: 'Alimenta os cards da vitrine de serviços ou catálogo principal do site/landing page.',
       sampleAnswer: config.sampleTopServices,
     },
     {
-      section: 'Diferenciais & Quebra de Objeções',
-      question: `Quais diferenciais únicos, tecnologias exclusivas, anos de mercado ou certificados fazem o cliente escolher você em vez do concorrente no Google Maps?`,
+      section: 'Público-Alvo & Oferta Principal',
+      question: `Como funcionam os valores, formas de pagamento ou condições comerciais (ex: divulga preços iniciais, faz orçamento gratuito, aceita Pix/parcelamento/convênios)?`,
+      placeholder: `Ex: ${config.samplePricingPolicy || 'Orçamento gratuito pelo WhatsApp; aceitamos Pix e parcelamento no cartão de crédito.'}`,
+      helperText: 'Deixa clara a etapa comercial no site e evita curiosos ou dúvidas básicas antes do contato.',
+      sampleAnswer:
+        config.samplePricingPolicy ||
+        'Trabalhamos com orçamento transparente pelo WhatsApp, aceitamos Pix, cartões de crédito parcelados e emissão de nota fiscal.',
+    },
+  ];
+
+  if (config.customQuestion1) {
+    rawQuestions.push(config.customQuestion1);
+  }
+  if (config.customQuestion2) {
+    rawQuestions.push(config.customQuestion2);
+  }
+
+  rawQuestions.push(
+    {
+      section: 'Autoridade, Diferenciais & Provas Sociais',
+      question: `Qual é a história resumida do negócio (tempo de mercado, formação da equipe/fundador) e quais os 3 maiores diferenciais reais em relação aos concorrentes?`,
       placeholder: `Ex: ${config.sampleDifferentials}`,
-      helperText: 'Fator decisivo para o cliente que está comparando os 3 perfis do topo do Google decidir ligar ou agendar com você.',
+      helperText: 'Constrói as seções "Sobre Nós" e "Por Que Nos Escolher" com argumentos concretos.',
       sampleAnswer: config.sampleDifferentials,
     },
     {
-      section: 'Horários & Formatos de Atendimento',
-      question: `Qual é o horário exato de funcionamento durante a semana e você atende aos sábados, domingos ou plantão de emergência?`,
-      placeholder: `Ex: ${defaultHours}`,
-      helperText: 'Garante que o perfil seja exibido com a tag verde "Aberto Agora" quando potenciais clientes buscam fora do horário convencional.',
-      sampleAnswer: defaultHours,
+      section: 'Autoridade, Diferenciais & Provas Sociais',
+      question: `Quais resultados, números ou depoimentos reais você pode mostrar no site (ex: anos de experiência, clientes atendidos, nota no Google ou elogios reais)?`,
+      placeholder: `Ex: ${config.sampleSocialProof || 'Nota 4.9 no Google com mais de 180 avaliações verificadas e mais de 1.000 clientes atendidos.'}`,
+      helperText: 'Preenche a seção de Prova Social com fatos reais (nunca inventados).',
+      sampleAnswer:
+        config.sampleSocialProof ||
+        'Mais de 10 anos de atuação, nota 4.9 no Google Meu Negócio e dezenas de depoimentos reais de clientes satisfeitos.',
     },
     {
-      section: 'Conversão Direta & Contatos',
-      question: `Quais são o WhatsApp oficial com DDD, telefone comercial e link do site ou agendamento online?`,
-      placeholder: 'Ex: WhatsApp: (11) 98765-4321 | Fixo: (11) 3456-7890 | Site: www.suaempresa.com.br',
-      helperText: 'Configura os botões de ação rápida "Ligar", "Site" e "Mensagem" que convertem visualizações em contatos imediatos.',
-      sampleAnswer: 'WhatsApp comercial ativo para atendimento rápido e direcionamento de novos agendamentos.',
+      section: 'Localização, Horários & Canais de Contato',
+      question: `Onde o cliente é atendido? Informe endereço físico completo com cidade/bairro (se receber público no local) OU se o atendimento é 100% online/em domicílio, além dos dias e horários de funcionamento.`,
+      placeholder: `Ex: ${defaultAddress}`,
+      helperText: 'Define se o site terá bloco com Google Maps e rota presencial ou seção de atendimento online/regional.',
+      sampleAnswer: defaultAddress,
     },
     {
-      section: 'Atributos de Confiança do Perfil',
-      question: `O local possui estacionamento próprio/gratuito, acessibilidade para cadeirantes, ambiente climatizado, Wi-Fi e quais formas de pagamento aceita?`,
-      placeholder: 'Ex: Estacionamento gratuito com manobrista, acessibilidade total com rampa, Wi-Fi liberado, aceita PIX e parcelamento no cartão.',
-      helperText: 'Atributos oficiais verificados pelo Google que ativam os filtros de busca avançada dos usuários no Maps.',
-      sampleAnswer: 'Estacionamento próprio, acessibilidade completa, ambiente totalmente climatizado e diversas opções de pagamento.',
+      section: 'Localização, Horários & Canais de Contato',
+      question: `Quais são o WhatsApp oficial, e-mail, Instagram/redes sociais e qual frase você quer nos botões principais do site?`,
+      placeholder: `Ex: ${config.sampleContacts || 'WhatsApp: (11) 98765-4321 | E-mail: contato@empresa.com.br | Instagram: @empresa | Botão: "Falar no WhatsApp"'}`,
+      helperText: 'Configura o botão flutuante, todos os botões de ação (CTA), links sociais e rodapé.',
+      sampleAnswer:
+        config.sampleContacts ||
+        'WhatsApp: (11) 98765-4321 | E-mail: contato@empresa.com.br | Instagram: @oficialempresa | Texto do botão: "Solicitar Atendimento no WhatsApp".',
     },
     {
-      section: 'Prova Social & Reputação 5 Estrelas',
-      question: `A empresa já possui avaliações no Google Maps? Qual a nota atual, quantidade aproximada e quais são os maiores elogios dos clientes?`,
-      placeholder: 'Ex: Nota 4.9 com mais de 80 avaliações. Clientes elogiam a pontualidade, atendimento acolhedor e resultado perfeito.',
-      helperText: 'Usado para estruturar a estratégia de captação de novas avaliações e templates de respostas com palavras-chave que aumentam o ranking.',
-      sampleAnswer: 'Avaliações de excelência com forte recomendação pela qualidade do atendimento e pontualidade.',
-    },
-    {
-      section: 'FAQ Local do Google',
-      question: `Quais são as 3 dúvidas ou medos mais comuns que os clientes perguntam antes de fechar e qual é a resposta ideal?`,
+      section: 'Dúvidas Frequentes (FAQ)',
+      question: `Quais são as 3 dúvidas que os clientes mais perguntam pelo WhatsApp antes de fechar (e suas respostas)?`,
       placeholder: `Ex: ${config.sampleFaq}`,
-      helperText: 'Alimenta a seção oficial de Perguntas e Respostas do perfil do Google Maps para quebrar objeções 24 horas por dia.',
+      helperText: 'Monta a seção de Perguntas Frequentes (FAQ) para quebrar objeções direto na página.',
       sampleAnswer: config.sampleFaq,
     },
-  ];
+    {
+      section: 'Identidade Visual, Fotos & Materiais',
+      question: `Para o site ficar com a sua cara: quais cores e estilo visual você prefere (ex: moderno e limpo, sofisticado escuro, acolhedor claro), você já tem logotipo, fotos reais ou site de referência?`,
+      placeholder: `Ex: ${config.sampleVisualAndAssets || 'Cores azul marinho e branco, visual limpo e profissional; já temos logotipo e fotos reais da equipe e do espaço.'}`,
+      helperText: 'Define paleta de cores, tipografia, clima visual e uso das fotos reais no layout gerado.',
+      sampleAnswer:
+        config.sampleVisualAndAssets ||
+        'Visual limpo, moderno e elegante respeitando as cores da marca; logotipo em alta definição já disponível e fotos reais do ambiente e equipe.',
+    }
+  );
+
+  const sections = Array.from(new Set(rawQuestions.map((q) => q.section)));
 
   return buildTemplate({
     id: config.id,
@@ -149,21 +222,11 @@ export function buildGbpRankingTemplate(config: GbpRankingTemplateConfig): Quest
     emoji: config.emoji,
     subtitle: config.subtitle,
     totalQuestions: rawQuestions.length,
-    sections: [
-      'Identidade & Categoria Google',
-      'Geolocalização & Bairros de Maior Ticket',
-      'Palavras-Chave de Busca Local em Alta',
-      'Catálogo de Serviços & Margem',
-      'Diferenciais & Quebra de Objeções',
-      'Horários & Formatos de Atendimento',
-      'Conversão Direta & Contatos',
-      'Atributos de Confiança do Perfil',
-      'Prova Social & Reputação 5 Estrelas',
-      'FAQ Local do Google',
-    ],
+    sections,
     defaultPrimaryCategory: config.defaultPrimaryCategory,
     suggestedSecondaryCategories: config.suggestedSecondaryCategories,
     sampleBusinessName: config.sampleBusinessName,
+    targetTool: config.targetTool,
     rawQuestions,
   });
 }

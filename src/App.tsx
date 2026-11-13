@@ -530,6 +530,24 @@ export default function App() {
               initialSubTab="questionnaires"
               initialQuestionnaire={pendingGbpQuestionnaire}
               onClearInitialQuestionnaire={() => setPendingGbpQuestionnaire(null)}
+              onCreateSiteProject={(briefing, clientName, projectName) => {
+                setNewProjectInitialValues({
+                  name: projectName,
+                  clientName: clientName,
+                  projectType: 'landing_page',
+                  targetPlatform: 'ai_site_builder',
+                  hostingTarget: 'hostinger_static',
+                  preferredFramework: 'Astro + Tailwind CSS (Padrão Prompt Mestre)',
+                  questionnaire: briefing,
+                  additionalNotes: `Questionário estratégico do nicho respondido pelo cliente.`,
+                });
+                navigateToTab('new_project');
+                showToast(
+                  'Questionário Carregado no Novo Projeto!',
+                  `Formulário preenchido com as respostas de ${projectName}.`,
+                  'success'
+                );
+              }}
             />
           )}
 
@@ -541,6 +559,24 @@ export default function App() {
               initialSubTab="create"
               initialQuestionnaire={pendingGbpQuestionnaire}
               onClearInitialQuestionnaire={() => setPendingGbpQuestionnaire(null)}
+              onCreateSiteProject={(briefing, clientName, projectName) => {
+                setNewProjectInitialValues({
+                  name: projectName,
+                  clientName: clientName,
+                  projectType: 'landing_page',
+                  targetPlatform: 'ai_site_builder',
+                  hostingTarget: 'hostinger_static',
+                  preferredFramework: 'Astro + Tailwind CSS (Padrão Prompt Mestre)',
+                  questionnaire: briefing,
+                  additionalNotes: `Questionário estratégico do nicho respondido pelo cliente.`,
+                });
+                navigateToTab('new_project');
+                showToast(
+                  'Questionário Carregado no Novo Projeto!',
+                  `Formulário preenchido com as respostas de ${projectName}.`,
+                  'success'
+                );
+              }}
             />
           )}
 

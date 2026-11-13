@@ -346,6 +346,54 @@ export const GBP_33_NICHOS_SEO_PACKAGES: Record<string, GbpNicheSeoPackage> = {
     ],
   },
 
+  advogado_individual_gbp: {
+    id: 'advogado_individual_gbp',
+    name: 'Advogado Individual (Google Business Profile Pro)',
+    emoji: '👨‍⚖️',
+    categoryGroup: 'Serviços Profissionais',
+    primaryCategory: 'Advogado',
+    secondaryCategories: ['Advogado trabalhista', 'Advogado de família', 'Advogado previdenciário', 'Consultor jurídico'],
+    topKeywordsGoogle: [
+      { keyword: 'advogado [especialidade] em [cidade]', intent: 'local_direta', searchVolume: 'Muito Alto', recommendation: 'Termo principal para ranqueamento de profissional autônomo no Google Maps.' },
+      { keyword: 'consulta com Dr./Dra. [Nome] advogado [cidade]', intent: 'transacional', searchVolume: 'Alto', recommendation: 'Fortalece buscas nominais com marca pessoal e OAB.' },
+      { keyword: 'advogado especialista perto de mim com hora marcada', intent: 'local_direta', searchVolume: 'Muito Alto', recommendation: 'Destacar atendimento personalizado direto com o titular.' },
+      { keyword: 'advogado [especialidade] atendimento online e presencial [bairro]', intent: 'decisão', searchVolume: 'Alto', recommendation: 'Usar na descrição, serviços e atributos de atendimento por vídeo.' },
+      { keyword: 'melhor advogado [especialidade] em [cidade] avaliações', intent: 'decisão', searchVolume: 'Alto', recommendation: 'Solicitar avaliações citando clareza, atenção e atendimento direto.' },
+    ],
+    descriptionTemplate:
+      'Atuação jurídica personalizada do(a) Dr(a). [Nome do(a) Advogado(a)] (OAB/[UF] [Número]) em [cidade] e atendimento online em todo o Brasil. Especializado(a) em [Especialidade Principal], oferecendo atendimento direto e sigiloso com o advogado titular do início ao fim do caso, sem repasse a terceiros. Serviços: análise documental e viabilidade jurídica, orientação preventiva, atuação em processos trabalhistas, previdenciários (INSS), família e sucessões ou demandas cíveis conforme a necessidade do cliente. Atendimento presencial com hora marcada no bairro [bairro] e por videoconferência. Agende sua consulta!',
+    recommendedServices: [
+      { name: 'Consulta Jurídica Individual (Presencial ou Online)', description: 'Atendimento reservado diretamente com o(a) advogado(a) para análise do caso, documentos e esclarecimento de direitos.', priceHint: 'Com hora marcada' },
+      { name: 'Análise de Rescisão e Ações Trabalhistas', description: 'Verificação detalhada de verbas rescisórias, horas extras, adicionais e defesa de direitos trabalhistas.', priceHint: 'Análise técnica' },
+      { name: 'Planejamento e Benefícios Previdenciários (INSS)', description: 'Estudo de tempo de contribuição, concessão de aposentadoria e revisão de benefícios negados.', priceHint: 'Sob avaliação' },
+      { name: 'Direito de Família, Divórcio e Inventários', description: 'Atuação célere e consensual ou judicial para divórcios, pensão alimentícia, guarda e partilha de bens.', priceHint: 'Tabela OAB' },
+    ],
+    essentialAttributes: [
+      'Atendimento somente com hora marcada',
+      'Reuniões presenciais e por videoconferência',
+      'Acessibilidade para cadeirantes',
+      'Aceita Pix e cartões',
+      'Atendimento direto com o titular OAB',
+    ],
+    googlePostsTemplates: [
+      {
+        title: 'Atendimento Jurídico Direto com Advogado Especialista em [cidade]',
+        body: 'Precisa de orientação jurídica clara e segura? Atendimento personalizado com hora marcada no bairro [bairro] ou por videoconferência em todo o Brasil. Agende sua consulta pelo WhatsApp.',
+        cta: 'Agendar agora',
+      },
+    ],
+    faqsForRanking: [
+      {
+        question: 'O atendimento inicial é feito diretamente com o(a) advogado(a)?',
+        answer: 'Sim. Toda análise, orientação jurídica e condução estratégica é realizada diretamente pelo(a) advogado(a) titular, com sigilo profissional absoluto.',
+      },
+      {
+        question: 'É possível agendar consulta jurídica online por videoconferência?',
+        answer: 'Sim! Realizamos atendimentos presenciais com hora marcada em [cidade] e consultas online seguras para clientes de todo o Brasil.',
+      },
+    ],
+  },
+
   arquitetura: {
     id: 'arquitetura',
     name: 'Arquitetura / Design de Interiores',
@@ -1242,6 +1290,19 @@ export function getGbpNichePackage(nicheKeyOrTitle: string): GbpNicheSeoPackage 
     return GBP_33_NICHOS_SEO_PACKAGES[normalized];
   }
 
+  // Detecção explícita de Advogado Individual (LP ou GBP)
+  if (
+    normalized === 'advogado_individual_lp' ||
+    normalized === 'advogado_individual_gbp' ||
+    normalized.includes('advogado individual') ||
+    normalized.includes('advogada individual') ||
+    normalized.includes('advogado autônomo') ||
+    normalized.includes('advogada autônoma') ||
+    ((normalized.includes('dr.') || normalized.includes('dra.')) && normalized.includes('advog') && !normalized.includes('associados') && !normalized.includes('sociedade de advogados'))
+  ) {
+    return GBP_33_NICHOS_SEO_PACKAGES.advogado_individual_gbp;
+  }
+
   // Busca por correspondência no nome ou categoria
   const foundKey = Object.keys(GBP_33_NICHOS_SEO_PACKAGES).find((k) => {
     const pkg = GBP_33_NICHOS_SEO_PACKAGES[k];
@@ -1260,6 +1321,7 @@ export function getGbpNichePackage(nicheKeyOrTitle: string): GbpNicheSeoPackage 
   if (normalized.includes('estét') || normalized.includes('beleza')) return GBP_33_NICHOS_SEO_PACKAGES.clinica_estetica;
   if (normalized.includes('odonto') || normalized.includes('dent')) return GBP_33_NICHOS_SEO_PACKAGES.dentista;
   if (normalized.includes('médic') || normalized.includes('saúde')) return GBP_33_NICHOS_SEO_PACKAGES.clinica_medica;
+  if (normalized.includes('advogad') && !normalized.includes('escritório') && !normalized.includes('associados')) return GBP_33_NICHOS_SEO_PACKAGES.advogado_individual_gbp;
   if (normalized.includes('advoc') || normalized.includes('juríd') || normalized.includes('direito')) return GBP_33_NICHOS_SEO_PACKAGES.advocacia;
   if (normalized.includes('arquit') || normalized.includes('interiores')) return GBP_33_NICHOS_SEO_PACKAGES.arquitetura;
   if (normalized.includes('construt') || normalized.includes('obra')) return GBP_33_NICHOS_SEO_PACKAGES.construtora;
