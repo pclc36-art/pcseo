@@ -6,20 +6,15 @@ import {
   User,
   KeyRound,
   LogIn,
-  AlertCircle,
   CheckCircle2,
   Sparkles,
-  Check,
-  Copy,
   HelpCircle,
   Eye,
   EyeOff,
   RotateCcw,
-  RefreshCw,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 import { authService, AdminUser } from '../../services/authService';
-import { copyToClipboard } from '../../utils/clipboard';
 
 interface AdminGatekeeperViewProps {
   hasAdmin: boolean;
@@ -33,6 +28,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
   onNotify,
 }) => {
   const [hasAdmin, setHasAdmin] = useState(initialHasAdmin);
+  const [serverConnected, setServerConnected] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   // Registration Form State (Only shown if hasAdmin is false)
@@ -43,28 +39,17 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
   const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Login Form State (Shown when hasAdmin is true)
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState(() => authService.getRememberedEmail());
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-
-  // Recovery Modal & State
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
-  const [recoveryStep, setRecoveryStep] = useState<1 | 2>(1);
-  const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [recoveryTokenInput, setRecoveryTokenInput] = useState('');
-  const [generatedTokenPreview, setGeneratedTokenPreview] = useState<string | null>(null);
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
-  const [copiedToken, setCopiedToken] = useState(false);
-
-  // Reset Modal
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Login Help / Reminder Modal
   const [isLoginHelpOpen, setIsLoginHelpOpen] = useState(false);
   const [registeredEmailHint, setRegisteredEmailHint] = useState<string | null>(null);
 
-  // Sync state whenever props change or on mount
+  // Recovery Help Modal
+  const [isRecoveryHelpOpen, setIsRecoveryHelpOpen] = useState(false);
+
   useEffect(() => {
     setHasAdmin(initialHasAdmin);
   }, [initialHasAdmin]);
@@ -74,8 +59,13 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
       try {
         const status = await authService.checkSystemStatus();
         setHasAdmin(status.hasAdmin);
-        if (status.adminEmail) {
-          setLoginEmail(status.adminEmail);
+        setServerConnected(status.serverConnected);
+        if (status.maskedEmail) {
+          setRegisteredEmailHint(status.maskedEmail);
+        }
+        const remembered = authService.getRememberedEmail();
+        if (remembered) {
+          setLoginEmail(remembered);
         }
       } catch (err) {
         console.warn('Status check warning:', err);
@@ -88,7 +78,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
   const handleRegisterFirstAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regName.trim() || !regEmail.trim() || !regPassword) {
-      onNotify('Campos Obrigatórios', 'Preencha todos os campos para cadastrar o Administrador.', 'warning');
+      onNotify('Campos Obrigatórios', 'Preencha todos os campos para cadastrar seu acesso exclusivo.', 'warning');
       return;
     }
     if (regPassword !== regPasswordConfirm) {
@@ -96,7 +86,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
       return;
     }
     if (regPassword.length < 6) {
-      onNotify('Senha Fraca', 'A senha de administrador deve conter no mínimo 6 caracteres.', 'warning');
+      onNotify('Senha Fraca', 'A senha deve conter no mínimo 6 caracteres.', 'warning');
       return;
     }
 
@@ -111,8 +101,8 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
       if (res.success && res.user) {
         setHasAdmin(true);
         onNotify(
-          'Administrador Cadastrado!',
-          `Bem-vindo, ${res.user.name}. Sua conta de Administrador Único foi gravada com sucesso.`,
+          'Acesso Exclusivo Ativado!',
+          `Bem-vindo, ${res.user.name}. Seu e-mail e senha agora funcionam em qualquer aparelho.`,
           'success'
         );
         onAuthenticated(res.user);
@@ -130,7 +120,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.trim() || !loginPassword) {
-      onNotify('Preencha os Campos', 'Informe seu e-mail de administrador e senha.', 'warning');
+      onNotify('Preencha os Campos', 'Informe seu e-mail e senha de acesso.', 'warning');
       return;
     }
 
@@ -150,113 +140,15 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
     }
   };
 
-  // Handle Password Recovery - Step 1: Request Token
-  const handleRequestRecovery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recoveryEmail.trim()) {
-      onNotify('E-mail Obrigatório', 'Informe o e-mail do administrador para recuperação.', 'warning');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await authService.requestPasswordRecovery(recoveryEmail);
-      if (res.success && res.token) {
-        setGeneratedTokenPreview(res.token);
-        setRecoveryTokenInput(res.token);
-        setRecoveryStep(2);
-        onNotify(
-          'Código Gerado!',
-          `Código de segurança gerado para ${res.registeredEmail}. Utilize-o para redefinir sua senha.`,
-          'success'
-        );
-      } else {
-        onNotify('Atenção', res.message, 'error');
-      }
-    } catch (err: any) {
-      onNotify('Erro', err.message, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Password Recovery - Step 2: Reset with Token
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recoveryTokenInput.trim() || !newPasswordInput) {
-      onNotify('Campos Obrigatórios', 'Digite o código de verificação e a nova senha.', 'warning');
-      return;
-    }
-    if (newPasswordInput !== newPasswordConfirm) {
-      onNotify('Senhas Diferentes', 'A confirmação de senha não confere.', 'error');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await authService.resetPasswordWithToken(recoveryTokenInput, newPasswordInput);
-      if (res.success && res.user) {
-        setIsRecoveryOpen(false);
-        setRecoveryStep(1);
-        setRecoveryEmail('');
-        setRecoveryTokenInput('');
-        setGeneratedTokenPreview(null);
-        setNewPasswordInput('');
-        setNewPasswordConfirm('');
-        onNotify('Senha Redefinida!', res.message, 'success');
-        onAuthenticated(res.user);
-      } else {
-        onNotify('Falha na Redefinição', res.message, 'error');
-      }
-    } catch (err: any) {
-      onNotify('Erro', err.message, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Complete Admin Reset (Allows user to start fresh)
-  const handlePerformAdminReset = async () => {
-    setIsLoading(true);
-    try {
-      await authService.resetSystemAdmin();
-      setHasAdmin(false);
-      setRegName('');
-      setRegEmail('');
-      setRegPassword('');
-      setRegPasswordConfirm('');
-      setLoginEmail('');
-      setLoginPassword('');
-      setIsResetConfirmOpen(false);
-      onNotify(
-        'Sistema Reiniciado',
-        'O cadastro anterior foi resetado. Você pode cadastrar seu Administrador Único agora.',
-        'info'
-      );
-    } catch (err: any) {
-      onNotify('Erro ao resetar', err.message, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Handle Reveal Masked Email for Login Reminder
   const handleCheckLoginEmail = async () => {
     try {
       const status = await authService.checkSystemStatus();
-      if (status.adminEmail) {
-        const parts = status.adminEmail.split('@');
-        const userPart = parts[0];
-        const domainPart = parts[1] || '';
-        const maskedUser =
-          userPart.length > 3
-            ? `${userPart[0]}${'*'.repeat(userPart.length - 2)}${userPart[userPart.length - 1]}`
-            : `${userPart[0]}***`;
-        setRegisteredEmailHint(`${maskedUser}@${domainPart}`);
-        setLoginEmail(status.adminEmail);
+      if (status.maskedEmail) {
+        setRegisteredEmailHint(status.maskedEmail);
         setIsLoginHelpOpen(true);
       } else {
-        onNotify('Atenção', 'Nenhum administrador identificado.', 'warning');
+        onNotify('Atenção', 'Nenhum administrador identificado no servidor.', 'warning');
       }
     } catch {
       onNotify('Erro', 'Não foi possível consultar os dados de login.', 'error');
@@ -283,10 +175,20 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1.5 max-w-sm">
             {hasAdmin
-              ? 'Acesso Exclusivo do Administrador Geral'
-              : 'Configuração do Administrador Único do Sistema'}
+              ? 'Acesso Exclusivo do Administrador Único'
+              : 'Configuração Inicial do Administrador Exclusivo'}
           </p>
         </div>
+
+        {!serverConnected && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-rose-300 block mb-0.5">Servidor de Autenticação Indisponível</strong>
+              Para manter sua senha sincronizada em todos os aparelhos, certifique-se de que o servidor Node.js está ativo na Hostinger.
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* STATE 1: NO ADMIN REGISTERED -> FIRST-TIME EXCLUSIVE SETUP                */}
@@ -296,13 +198,13 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
             <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed space-y-1.5">
               <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                Cadastro Único e Permanente
+                Cadastre sua Nova Senha Exclusiva
               </div>
               <p>
-                Este aplicativo é de seu uso privativo. Cadastre abaixo seu nome, e-mail oficial e senha de acesso.
+                O login anterior foi resetado. Defina abaixo seu nome, e-mail e a sua nova senha pessoal para bloquear o aplicativo apenas para você.
               </p>
               <p className="text-[11px] text-amber-300/80">
-                Após este cadastro, o sistema guardará seu acesso exclusivo. Ao abrir em outro aparelho, bastará informar seu e-mail e senha.
+                Após concluir este cadastro, esta mesma senha ficará salva no servidor e funcionará em todos os seus aparelhos (celular, tablet e computador).
               </p>
             </div>
 
@@ -325,7 +227,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  Seu E-mail Oficial (Login e Recuperação)
+                  Seu E-mail de Acesso
                 </label>
                 <input
                   type="email"
@@ -342,7 +244,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-                      Senha de Acesso
+                      Nova Senha
                     </span>
                     <button
                       type="button"
@@ -380,15 +282,15 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !serverConnected}
                 className="w-full py-3.5 px-4 mt-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-cyan-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
-                  <span>Cadastrando...</span>
+                  <span>Salvando no Servidor...</span>
                 ) : (
                   <>
                     <ShieldCheck className="w-5 h-5" />
-                    Finalizar Cadastro & Ativar Meu Acesso Único
+                    Cadastrar Minha Senha Exclusiva
                   </>
                 )}
               </button>
@@ -405,22 +307,12 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div className="text-xs">
-                  <div className="font-semibold text-white">Administrador Registrado</div>
+                  <div className="font-semibold text-white">Acesso Privativo Protegido</div>
                   <div className="text-slate-400 text-[11px]">
-                    Digite seu e-mail e senha de administrador para entrar.
+                    Entre com o mesmo e-mail e senha em qualquer aparelho.
                   </div>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsResetConfirmOpen(true)}
-                title="Resetar cadastro e criar nova conta de administrador"
-                className="text-[11px] text-slate-400 hover:text-rose-400 hover:underline flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-rose-950/30"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Resetar Acesso
-              </button>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
@@ -433,10 +325,10 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
                   <button
                     type="button"
                     onClick={handleCheckLoginEmail}
-                    className="text-[11px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <HelpCircle className="w-3 h-3" />
-                    Lembrar meu e-mail
+                    Lembrar e-mail
                   </button>
                 </label>
                 <input
@@ -453,16 +345,12 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-                    Senha de Acesso
+                    Sua Senha Exclusiva
                   </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      setRecoveryEmail(loginEmail);
-                      setRecoveryStep(1);
-                      setIsRecoveryOpen(true);
-                    }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+                    onClick={() => setIsRecoveryHelpOpen(true)}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline transition-colors cursor-pointer"
                   >
                     Esqueci minha senha
                   </button>
@@ -479,7 +367,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                   >
                     {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -488,11 +376,11 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !serverConnected}
                 className="w-full py-3.5 px-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
-                  <span>Verificando...</span>
+                  <span>Verificando no Servidor...</span>
                 ) : (
                   <>
                     <LogIn className="w-4 h-4" />
@@ -507,207 +395,59 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
         {/* Footer info */}
         <div className="mt-8 pt-6 border-t border-slate-800/80 text-center text-[11px] text-slate-500 space-y-2">
           <p>
-            Autenticação Segura • Acesso exclusivo com sincronização persistente entre dispositivos
+            Autenticação Centralizada no Servidor • Mesma senha sincronizada em todos os seus aparelhos
           </p>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* MODAL: RESET CONFIRMATION                                                 */}
+      {/* MODAL: RECOVERY INSTRUCTIONS WITHOUT ENV VARS                             */}
       {/* ========================================================================= */}
-      {isResetConfirmOpen && (
+      {isRecoveryHelpOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-base font-bold text-white">Resetar cadastro do Administrador?</h3>
-              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                Esta ação apagará o administrador atual e permitirá que você cadastre novamente seu nome, e-mail e senha a partir do zero.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-3">
-              <button
-                onClick={() => setIsResetConfirmOpen(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handlePerformAdminReset}
-                disabled={isLoading}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Sim, Resetar Agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 1: PASSWORD RECOVERY (2-STEP VERIFICATION CODE)                      */}
-      {/* ========================================================================= */}
-      {isRecoveryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-5 border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-indigo-400 font-bold text-base">
-                <KeyRound className="w-5 h-5" />
-                Recuperação de Senha do Administrador
+                <RotateCcw className="w-5 h-5" />
+                Como Alterar ou Resetar Sua Senha
               </div>
               <button
-                onClick={() => setIsRecoveryOpen(false)}
+                type="button"
+                onClick={() => setIsRecoveryHelpOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-sm"
               >
                 ✕
               </button>
             </div>
 
-            {recoveryStep === 1 ? (
-              <form onSubmit={handleRequestRecovery} className="space-y-4">
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Digite seu e-mail cadastrado como administrador. O sistema gerará um{' '}
-                  <strong className="text-white">código de verificação seguro de 6 dígitos</strong>{' '}
-                  para redefinição imediata da sua senha.
-                </p>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Por segurança e exclusividade, pessoas sem acesso não podem apagar sua senha pela tela de login.
+            </p>
+            <ul className="text-xs text-slate-300 space-y-2 list-disc pl-4 leading-relaxed">
+              <li>
+                Para trocar sua senha normalmente, faça login e acesse{' '}
+                <strong className="text-white">Área Administrativa → Segurança</strong>.
+              </li>
+              <li>
+                Se você esqueceu a senha atual, remova o arquivo{' '}
+                <code className="text-cyan-300">.master-site-prompt-studio/admin_account.json</code>{' '}
+                pelo Gerenciador de Arquivos da sua Hostinger e recarregue a página.
+              </li>
+            </ul>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    E-mail do Administrador
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="seuemail@gmail.com"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsRecoveryOpen(false)}
-                    className="px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-white"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Gerar Código de Recuperação
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 text-xs text-emerald-200 space-y-2.5">
-                  <div className="flex items-center gap-2 font-semibold text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    Código de Segurança para {recoveryEmail}
-                  </div>
-                  <p className="text-[11px] text-emerald-300/80">
-                    Utilize o código de segurança abaixo para definir sua nova senha com segurança:
-                  </p>
-                  {generatedTokenPreview && (
-                    <div className="flex items-center justify-between bg-slate-950 px-3.5 py-2.5 rounded-xl border border-emerald-500/30">
-                      <span className="font-mono text-base tracking-widest text-emerald-300 font-bold">
-                        {generatedTokenPreview}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const ok = await copyToClipboard(generatedTokenPreview);
-                          if (ok) {
-                            setCopiedToken(true);
-                            setTimeout(() => setCopiedToken(false), 2000);
-                          }
-                        }}
-                        className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold cursor-pointer"
-                      >
-                        {copiedToken ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        {copiedToken ? 'Copiado!' : 'Copiar'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Código de Verificação de 6 Dígitos
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={recoveryTokenInput}
-                    onChange={(e) => setRecoveryTokenInput(e.target.value)}
-                    placeholder="Ex: 582910"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white font-mono tracking-widest focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Nova Senha
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={newPasswordInput}
-                      onChange={(e) => setNewPasswordInput(e.target.value)}
-                      placeholder="Mínimo 6 dígitos"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Confirmar Nova Senha
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={newPasswordConfirm}
-                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                      placeholder="Repita a senha"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2 justify-end pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setRecoveryStep(1)}
-                    className="px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-white"
-                  >
-                    Voltar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Salvar Nova Senha e Entrar
-                  </button>
-                </div>
-              </form>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsRecoveryHelpOpen(false)}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: LOGIN REMINDER / EMAIL HINT MODAL                                */}
+      {/* MODAL: LOGIN REMINDER / MASKED EMAIL HINT                                 */}
       {/* ========================================================================= */}
       {isLoginHelpOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -715,9 +455,9 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-3">
               <Mail className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white mb-2">Seu E-mail Cadastrado</h3>
+            <h3 className="text-base font-bold text-white mb-2">E-mail do Administrador</h3>
             <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              O Administrador Geral está registrado sob o endereço:
+              O acesso exclusivo está registrado para o endereço:
             </p>
             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-cyan-300 font-mono text-sm mb-4">
               {registeredEmailHint}
@@ -726,7 +466,7 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
               onClick={() => setIsLoginHelpOpen(false)}
               className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold cursor-pointer"
             >
-              Compreendido, Prosseguir com Login
+              Entendido, Voltar ao Login
             </button>
           </div>
         </div>

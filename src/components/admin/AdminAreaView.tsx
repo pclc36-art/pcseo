@@ -55,19 +55,11 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Password Recovery Modal / Flow
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
-  const [recoveryStep, setRecoveryStep] = useState<1 | 2>(1);
-  const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [recoveryTokenInput, setRecoveryTokenInput] = useState('');
-  const [generatedTokenPreview, setGeneratedTokenPreview] = useState<string | null>(null);
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
-
   // Change password in dashboard
   const [currPass, setCurrPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmNewPass, setConfirmNewPass] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
 
   // Stats
   const [stats, setStats] = useState({
@@ -77,8 +69,6 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
     customPromptsCount: 0,
   });
 
-  // Copied token state
-  const [copiedToken, setCopiedToken] = useState(false);
   const [isResetSystemModalOpen, setIsResetSystemModalOpen] = useState(false);
 
   useEffect(() => {
@@ -92,11 +82,9 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
     const user = authService.getCurrentUser();
     setCurrentUser(user);
     if (!user && status.hasAdmin) {
-      const savedAdmin = authService.getAdminAccount();
-      if (savedAdmin?.email) {
-        setLoginEmail(savedAdmin.email);
-      } else if (status.adminEmail) {
-        setLoginEmail(status.adminEmail);
+      const remembered = authService.getRememberedEmail();
+      if (remembered) {
+        setLoginEmail(remembered);
       }
     }
   };
@@ -174,57 +162,7 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
     await authService.logout();
     setCurrentUser(null);
     onNotify('Sessão Encerrada', 'Você saiu da Área Administrativa.', 'info');
-  };
-
-  // Handle Password Recovery - Step 1: Request Token
-  const handleRequestRecovery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recoveryEmail.trim()) {
-      onNotify('E-mail Obrigatório', 'Informe o e-mail do administrador para recuperação.', 'warning');
-      return;
-    }
-
-    const res = await authService.requestPasswordRecovery(recoveryEmail);
-    if (res.success && res.token) {
-      setGeneratedTokenPreview(res.token);
-      setRecoveryTokenInput(res.token);
-      setRecoveryStep(2);
-      onNotify(
-        'Código Gerado!',
-        `Código de recuperação gerado para ${res.registeredEmail}. Utilize o código para redefinir sua senha.`,
-        'success'
-      );
-    } else {
-      onNotify('Atenção', res.message, 'error');
-    }
-  };
-
-  // Handle Password Recovery - Step 2: Reset with Token
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recoveryTokenInput.trim() || !newPasswordInput) {
-      onNotify('Campos Obrigatórios', 'Digite o código de verificação e a nova senha.', 'warning');
-      return;
-    }
-    if (newPasswordInput !== newPasswordConfirm) {
-      onNotify('Senhas Diferentes', 'A confirmação de senha não confere.', 'error');
-      return;
-    }
-
-    const res = await authService.resetPasswordWithToken(recoveryTokenInput, newPasswordInput);
-    if (res.success) {
-      setIsRecoveryOpen(false);
-      setRecoveryStep(1);
-      setRecoveryEmail('');
-      setRecoveryTokenInput('');
-      setGeneratedTokenPreview(null);
-      setNewPasswordInput('');
-      setNewPasswordConfirm('');
-      await refreshAuthState();
-      onNotify('Senha Redefinida!', res.message, 'success');
-    } else {
-      onNotify('Falha na Redefinição', res.message, 'error');
-    }
+    window.location.reload();
   };
 
   // Handle Change Password inside dashboard
@@ -448,17 +386,6 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
                   <KeyRound className="w-3.5 h-3.5 text-slate-400" />
                   Senha
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecoveryEmail(loginEmail);
-                    setRecoveryStep(1);
-                    setIsRecoveryOpen(true);
-                  }}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
-                >
-                  Esqueci minha senha
-                </button>
               </div>
               <input
                 type="password"
@@ -478,160 +405,6 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
               Entrar na Área Administrativa
             </button>
           </form>
-
-          {/* Recovery Modal */}
-          {isRecoveryOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
-                <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2 text-indigo-400 font-bold text-base">
-                    <KeyRound className="w-5 h-5" />
-                    Recuperação de Senha do Administrador
-                  </div>
-                  <button
-                    onClick={() => setIsRecoveryOpen(false)}
-                    className="text-slate-400 hover:text-white text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {recoveryStep === 1 ? (
-                  <form onSubmit={handleRequestRecovery} className="space-y-4">
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Informe o e-mail do administrador cadastrado. O sistema gerará um 
-                      <strong className="text-white"> código de verificação seguro</strong> para 
-                      redefinição de senha.
-                    </p>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                        E-mail Cadastrado
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={recoveryEmail}
-                        onChange={(e) => setRecoveryEmail(e.target.value)}
-                        placeholder="admin@empresa.com"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div className="flex gap-2 justify-end pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsRecoveryOpen(false)}
-                        className="px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-white"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        Enviar Código de Recuperação
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <form onSubmit={handleResetPassword} className="space-y-4">
-                    {/* Token notification box */}
-                    <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3.5 text-xs text-emerald-200 space-y-2">
-                      <div className="flex items-center gap-2 font-semibold text-emerald-400">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        Código de Segurança Enviado para o E-mail
-                      </div>
-                      <p className="text-[11px] text-emerald-300/80">
-                        Um código de 6 dígitos foi despachado para <strong>{recoveryEmail}</strong>.
-                      </p>
-                      {generatedTokenPreview && (
-                        <div className="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-lg border border-emerald-500/30">
-                          <span className="font-mono text-sm tracking-widest text-emerald-300 font-bold">
-                            {generatedTokenPreview}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const ok = await copyToClipboard(generatedTokenPreview);
-                              if (ok) {
-                                setCopiedToken(true);
-                                setTimeout(() => setCopiedToken(false), 2000);
-                              }
-                            }}
-                            className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                          >
-                            {copiedToken ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                            {copiedToken ? 'Copiado' : 'Copiar'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Código de 6 Dígitos
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={recoveryTokenInput}
-                        onChange={(e) => setRecoveryTokenInput(e.target.value)}
-                        placeholder="Ex: 849201"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono tracking-wider focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Nova Senha
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={newPasswordInput}
-                        onChange={(e) => setNewPasswordInput(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Confirmar Nova Senha
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={newPasswordConfirm}
-                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                        placeholder="Repita a nova senha"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div className="flex gap-2 justify-end pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setRecoveryStep(1)}
-                        className="px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-white"
-                      >
-                        Voltar
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Redefinir Senha e Entrar
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -1032,12 +805,27 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-white text-center">Resetar Cadastro de Administrador?</h3>
             <p className="text-xs text-slate-300 text-center leading-relaxed">
-              Tem certeza de que deseja resetar o cadastro do Administrador? O sistema liberará a tela para um novo cadastro exclusivo.
+              Confirme sua senha atual para apagar este cadastro e liberar o sistema para um novo login exclusivo em todos os aparelhos.
             </p>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Sua Senha Atual
+              </label>
+              <input
+                type="password"
+                value={resetConfirmPassword}
+                onChange={(e) => setResetConfirmPassword(e.target.value)}
+                placeholder="Digite sua senha atual"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setIsResetSystemModalOpen(false)}
+                onClick={() => {
+                  setIsResetSystemModalOpen(false);
+                  setResetConfirmPassword('');
+                }}
                 className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancelar
@@ -1045,7 +833,11 @@ export const AdminAreaView: React.FC<AdminAreaViewProps> = ({
               <button
                 type="button"
                 onClick={async () => {
-                  const res = await authService.resetSystemAdmin();
+                  if (!resetConfirmPassword.trim()) {
+                    onNotify('Senha Obrigatória', 'Informe sua senha atual para confirmar o reset.', 'warning');
+                    return;
+                  }
+                  const res = await authService.resetSystemAdmin({ currentPassword: resetConfirmPassword });
                   if (res.success) {
                     onNotify('Administrador Resetado', res.message, 'info');
                     window.location.reload();

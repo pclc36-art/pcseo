@@ -237,22 +237,21 @@ function apiMiddlewarePlugin(): Plugin {
         // ================= AUTHENTICATION & MASTER ADMIN ENDPOINTS =================
         // Status: is admin registered?
         if (pathname === '/api/auth/status' && req.method === 'GET') {
-          const hasAdmin = serverAuthStore.hasAdmin();
-          const adminInfo = serverAuthStore.getAdminSafe();
-          res.statusCode = 200;
-          return res.end(JSON.stringify({
-            hasAdmin,
-            adminEmail: adminInfo?.email || null,
-            adminName: adminInfo?.name || null,
-            createdAt: adminInfo?.createdAt || null,
-          }));
+          try {
+            const status = await serverAuthStore.getAdminPublicStatus();
+            res.statusCode = 200;
+            return res.end(JSON.stringify(status));
+          } catch (err: any) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ hasAdmin: false, error: err.message }));
+          }
         }
 
         // Register the FIRST and ONLY administrator
         if (pathname === '/api/auth/register-master' && req.method === 'POST') {
           try {
             const body = await parseRequestBody(req);
-            const result = serverAuthStore.registerMasterAdmin(body);
+            const result = await serverAuthStore.registerMasterAdmin(body);
             res.statusCode = result.success ? 200 : 400;
             return res.end(JSON.stringify(result));
           } catch (err: any) {
@@ -265,7 +264,7 @@ function apiMiddlewarePlugin(): Plugin {
         if (pathname === '/api/auth/login' && req.method === 'POST') {
           try {
             const body = await parseRequestBody(req);
-            const result = serverAuthStore.login(body.email, body.password);
+            const result = await serverAuthStore.login(body.email, body.password);
             res.statusCode = result.success ? 200 : 401;
             return res.end(JSON.stringify(result));
           } catch (err: any) {
@@ -278,7 +277,7 @@ function apiMiddlewarePlugin(): Plugin {
         if (pathname === '/api/auth/verify-session' && req.method === 'POST') {
           try {
             const body = await parseRequestBody(req);
-            const result = serverAuthStore.validateSession(body.token);
+            const result = await serverAuthStore.validateSession(body.token);
             res.statusCode = 200;
             return res.end(JSON.stringify(result));
           } catch (err: any) {
@@ -292,7 +291,7 @@ function apiMiddlewarePlugin(): Plugin {
           try {
             const body = await parseRequestBody(req);
             if (body.token) {
-              serverAuthStore.logout(body.token);
+              await serverAuthStore.logout(body.token);
             }
             res.statusCode = 200;
             return res.end(JSON.stringify({ success: true }));
@@ -302,37 +301,11 @@ function apiMiddlewarePlugin(): Plugin {
           }
         }
 
-        // Request password recovery
-        if (pathname === '/api/auth/recovery/request' && req.method === 'POST') {
-          try {
-            const body = await parseRequestBody(req);
-            const result = serverAuthStore.requestPasswordRecovery(body.email);
-            res.statusCode = result.success ? 200 : 400;
-            return res.end(JSON.stringify(result));
-          } catch (err: any) {
-            res.statusCode = 500;
-            return res.end(JSON.stringify({ success: false, message: err.message }));
-          }
-        }
-
-        // Reset password with recovery token
-        if (pathname === '/api/auth/recovery/reset' && req.method === 'POST') {
-          try {
-            const body = await parseRequestBody(req);
-            const result = serverAuthStore.resetPasswordWithToken(body.token, body.newPassword);
-            res.statusCode = result.success ? 200 : 400;
-            return res.end(JSON.stringify(result));
-          } catch (err: any) {
-            res.statusCode = 500;
-            return res.end(JSON.stringify({ success: false, message: err.message }));
-          }
-        }
-
         // Change password while logged in
         if (pathname === '/api/auth/change-password' && req.method === 'POST') {
           try {
             const body = await parseRequestBody(req);
-            const result = serverAuthStore.changePassword(body.token, body.currentPassword, body.newPassword);
+            const result = await serverAuthStore.changePassword(body.token, body.currentPassword, body.newPassword);
             res.statusCode = result.success ? 200 : 400;
             return res.end(JSON.stringify(result));
           } catch (err: any) {
@@ -341,11 +314,15 @@ function apiMiddlewarePlugin(): Plugin {
           }
         }
 
-        // Emergency / User-requested reset of system admin
+        // Protected reset of system admin
         if (pathname === '/api/auth/reset-system-admin' && req.method === 'POST') {
           try {
-            const result = serverAuthStore.resetAdmin();
-            res.statusCode = 200;
+            const body = await parseRequestBody(req);
+            const result = await serverAuthStore.resetAdmin({
+              token: body?.token,
+              currentPassword: body?.currentPassword,
+            });
+            res.statusCode = result.unauthorized ? 401 : 200;
             return res.end(JSON.stringify(result));
           } catch (err: any) {
             res.statusCode = 500;

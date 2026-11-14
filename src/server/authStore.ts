@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 
@@ -7,6 +8,7 @@ export interface ServerAdminUser {
   name: string;
   email: string;
   role: 'super_admin';
+  authEpoch: string;
   createdAt: string;
   lastLogin?: string;
   passwordHash: string;
@@ -17,91 +19,204 @@ export interface ServerAdminUser {
     createdAt: number;
     expiresAt: number;
   }[];
-  recoveryRequest?: {
-    token: string;
-    expiresAt: number;
-    requestedAt: number;
-  };
 }
 
-const DATA_DIR = path.resolve(process.cwd(), '.data');
+// Epoch bumped specifically to reset any pre-existing login credentials once,
+// while preserving any newly registered credentials across future deploys and devices.
+export const CURRENT_AUTH_EPOCH = 'reset_2026_exclusive_v1';
+
+const LEGACY_DATA_DIR = path.resolve(process.cwd(), '.data');
+const LEGACY_ADMIN_FILE = path.join(LEGACY_DATA_DIR, 'admin_account.json');
+
+function resolvePersistentDataDir(): string {
+  const candidates = [
+    path.join(os.homedir(), '.master-site-prompt-studio'),
+    LEGACY_DATA_DIR,
+  ];
+
+  for (const dir of candidates) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return LEGACY_DATA_DIR;
+}
+
+const DATA_DIR = resolvePersistentDataDir();
 const ADMIN_FILE = path.join(DATA_DIR, 'admin_account.json');
 
-// Ensure storage directory exists
 function ensureDataDir(): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
   } catch (err) {
-    console.error('Failed to create .data directory:', err);
+    console.error('Failed to create auth data directory:', err);
   }
 }
 
 function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+}
+
+function maskEmail(email: string): string {
+  const parts = email.split('@');
+  if (parts.length !== 2) return '***';
+  const [userPart, domainPart] = parts;
+  const maskedUser =
+    userPart.length > 3
+      ? `${userPart[0]}${'*'.repeat(Math.min(userPart.length - 2, 6))}${userPart[userPart.length - 1]}`
+      : `${userPart[0] || '*'}***`;
+  return `${maskedUser}@${domainPart}`;
+}
+
+function safeUnlink(filePath: string): void {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // ignore cleanup failure
+  }
+}
+
+function writeAdminFile(admin: ServerAdminUser): void {
+  ensureDataDir();
+  const tempPath = `${ADMIN_FILE}.tmp.${process.pid}`;
+  fs.writeFileSync(tempPath, JSON.stringify(admin, null, 2), 'utf-8');
+  fs.renameSync(tempPath, ADMIN_FILE);
+}
+
+function readAdminFile(): ServerAdminUser | null {
+  ensureDataDir();
+
+  if (LEGACY_ADMIN_FILE !== ADMIN_FILE && fs.existsSync(LEGACY_ADMIN_FILE)) {
+    try {
+      const legacyRaw = fs.readFileSync(LEGACY_ADMIN_FILE, 'utf-8');
+      const legacyParsed: Partial<ServerAdminUser> = JSON.parse(legacyRaw);
+      if (legacyParsed.authEpoch !== CURRENT_AUTH_EPOCH) {
+        safeUnlink(LEGACY_ADMIN_FILE);
+      } else if (!fs.existsSync(ADMIN_FILE)) {
+        writeAdminFile(legacyParsed as ServerAdminUser);
+        safeUnlink(LEGACY_ADMIN_FILE);
+      }
+    } catch {
+      safeUnlink(LEGACY_ADMIN_FILE);
+    }
+  }
+
+  if (!fs.existsSync(ADMIN_FILE)) return null;
+
+  try {
+    const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
+    const data: Partial<ServerAdminUser> = JSON.parse(content);
+
+    if (!data || !data.email || !data.passwordHash || data.authEpoch !== CURRENT_AUTH_EPOCH) {
+      safeUnlink(ADMIN_FILE);
+      return null;
+    }
+
+    return data as ServerAdminUser;
+  } catch {
+    return null;
+  }
 }
 
 export const serverAuthStore = {
-  // Check if admin is currently registered on the server
-  hasAdmin(): boolean {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return false;
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const data: ServerAdminUser = JSON.parse(content);
-      return Boolean(data && data.email && data.passwordHash);
-    } catch {
-      return false;
-    }
+  async hasAdmin(): Promise<boolean> {
+    return Boolean(readAdminFile());
   },
 
-  // Read admin data safely (never returns passwordHash or salt)
-  getAdminSafe(): { id: string; name: string; email: string; role: string; createdAt: string; lastLogin?: string } | null {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return null;
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const data: ServerAdminUser = JSON.parse(content);
-      if (!data || !data.email) return null;
+  async getAdminPublicStatus(): Promise<{
+    hasAdmin: boolean;
+    maskedEmail: string | null;
+    adminName: string | null;
+    createdAt: string | null;
+    authEpoch: string;
+  }> {
+    const admin = readAdminFile();
+    if (!admin) {
       return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role || 'super_admin',
-        createdAt: data.createdAt,
-        lastLogin: data.lastLogin,
+        hasAdmin: false,
+        maskedEmail: null,
+        adminName: null,
+        createdAt: null,
+        authEpoch: CURRENT_AUTH_EPOCH,
       };
-    } catch {
-      return null;
     }
+
+    return {
+      hasAdmin: true,
+      maskedEmail: maskEmail(admin.email),
+      adminName: admin.name,
+      createdAt: admin.createdAt,
+      authEpoch: CURRENT_AUTH_EPOCH,
+    };
   },
 
-  // Reset admin (wipe admin account so the user can make a brand new registration)
-  resetAdmin(): { success: boolean; message: string } {
-    ensureDataDir();
+  async resetAdmin(params?: { token?: string; currentPassword?: string }): Promise<{
+    success: boolean;
+    message: string;
+    unauthorized?: boolean;
+  }> {
+    const admin = readAdminFile();
+    if (!admin) {
+      safeUnlink(ADMIN_FILE);
+      safeUnlink(LEGACY_ADMIN_FILE);
+      return {
+        success: true,
+        message: 'Sistema pronto para novo cadastro exclusivo.',
+      };
+    }
+
+    const token = params?.token?.trim();
+    const currentPassword = params?.currentPassword?.trim();
+
+    const now = Date.now();
+    const hasValidToken = Boolean(
+      token && (admin.activeSessions || []).some((s) => s.token === token && s.expiresAt > now)
+    );
+    const hasValidPassword = Boolean(
+      currentPassword && hashPassword(currentPassword, admin.salt) === admin.passwordHash
+    );
+
+    if (!hasValidToken || (currentPassword !== undefined && !hasValidPassword)) {
+      return {
+        success: false,
+        unauthorized: true,
+        message: 'Autenticação inválida para resetar o administrador. Informe sua senha atual corretamente.',
+      };
+    }
+
     try {
-      if (fs.existsSync(ADMIN_FILE)) {
-        fs.unlinkSync(ADMIN_FILE);
-      }
-      return { success: true, message: 'Cadastro de administrador reiniciado com sucesso. O sistema está pronto para seu novo cadastro exclusivo.' };
+      safeUnlink(ADMIN_FILE);
+      safeUnlink(LEGACY_ADMIN_FILE);
+      return {
+        success: true,
+        message: 'Cadastro de administrador resetado com sucesso. Você pode cadastrar sua nova senha exclusiva agora.',
+      };
     } catch (err: any) {
       return { success: false, message: `Erro ao resetar administrador: ${err.message}` };
     }
   },
 
-  // Register the first and ONLY Administrator
-  registerMasterAdmin(data: { name: string; email: string; password: string }): {
+  async registerMasterAdmin(data: { name: string; email: string; password: string }): Promise<{
     success: boolean;
     message?: string;
     user?: { id: string; name: string; email: string; role: string };
     token?: string;
-  } {
-    ensureDataDir();
-    if (this.hasAdmin()) {
+  }> {
+    if (await this.hasAdmin()) {
       return {
         success: false,
-        message: 'O Administrador do sistema já está cadastrado. Novos cadastros estão bloqueados por segurança.',
+        message: 'O Administrador exclusivo do sistema já está cadastrado. Novos cadastros estão bloqueados por segurança.',
       };
     }
 
@@ -121,13 +236,14 @@ export const serverAuthStore = {
     const passwordHash = hashPassword(cleanPass, salt);
     const sessionToken = `admin_sess_${crypto.randomBytes(32).toString('hex')}`;
     const now = Date.now();
-    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days session
+    const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
     const admin: ServerAdminUser = {
       id: `admin_master_${Date.now()}`,
       name: cleanName,
       email: cleanEmail,
       role: 'super_admin',
+      authEpoch: CURRENT_AUTH_EPOCH,
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
       passwordHash,
@@ -143,7 +259,7 @@ export const serverAuthStore = {
     };
 
     try {
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
+      writeAdminFile(admin);
       return {
         success: true,
         user: {
@@ -159,22 +275,18 @@ export const serverAuthStore = {
     }
   },
 
-  // Log in as master admin
-  login(email: string, password: string): {
+  async login(email: string, password: string): Promise<{
     success: boolean;
     message?: string;
     user?: { id: string; name: string; email: string; role: string };
     token?: string;
-  } {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
+  }> {
+    const admin = readAdminFile();
+    if (!admin) {
       return { success: false, message: 'Nenhum administrador cadastrado no sistema.' };
     }
 
     try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
-
       const cleanEmail = email?.trim().toLowerCase();
       if (admin.email.toLowerCase() !== cleanEmail) {
         return { success: false, message: 'E-mail de administrador não confere.' };
@@ -185,22 +297,20 @@ export const serverAuthStore = {
         return { success: false, message: 'Senha incorreta.' };
       }
 
-      // Generate new session
       const sessionToken = `admin_sess_${crypto.randomBytes(32).toString('hex')}`;
       const now = Date.now();
-      const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+      const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
       admin.lastLogin = new Date().toISOString();
       if (!Array.isArray(admin.activeSessions)) {
         admin.activeSessions = [];
       }
-      // Keep up to 10 active sessions across devices
       admin.activeSessions = [
         ...admin.activeSessions.filter((s) => s.expiresAt > now),
         { token: sessionToken, createdAt: now, expiresAt },
-      ].slice(-10);
+      ].slice(-25);
 
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
+      writeAdminFile(admin);
 
       return {
         success: true,
@@ -217,199 +327,76 @@ export const serverAuthStore = {
     }
   },
 
-  // Validate session token
-  validateSession(token: string): {
+  async validateSession(token: string): Promise<{
     valid: boolean;
-    user?: { id: string; name: string; email: string; role: string };
-  } {
+    user?: { id: string; name: string; email: string; role: string; createdAt: string };
+  }> {
     if (!token) return { valid: false };
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return { valid: false };
+    const admin = readAdminFile();
+    if (!admin) return { valid: false };
 
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
-      const now = Date.now();
+    const now = Date.now();
+    const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
+    if (!active) return { valid: false };
 
-      const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
-      if (!active) return { valid: false };
-
-      return {
-        valid: true,
-        user: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-        },
-      };
-    } catch {
-      return { valid: false };
-    }
+    return {
+      valid: true,
+      user: {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        createdAt: admin.createdAt,
+      },
+    };
   },
 
-  // Destroy session
-  logout(token: string): void {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return;
+  async logout(token: string): Promise<void> {
+    const admin = readAdminFile();
+    if (!admin) return;
     try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
       admin.activeSessions = (admin.activeSessions || []).filter((s) => s.token !== token);
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
+      writeAdminFile(admin);
     } catch {
       // ignore
     }
   },
 
-  // Request password recovery
-  requestPasswordRecovery(email: string): {
+  async changePassword(token: string, currentPassword: string, newPassword: string): Promise<{
     success: boolean;
     message: string;
-    token?: string;
-    registeredEmail?: string;
-  } {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
-      return { success: false, message: 'Nenhum administrador cadastrado no sistema.' };
-    }
-
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
-      const cleanEmail = email?.trim().toLowerCase();
-
-      if (admin.email.toLowerCase() !== cleanEmail) {
-        return {
-          success: false,
-          message: 'O e-mail digitado não corresponde ao administrador cadastrado no sistema.',
-        };
-      }
-
-      // Generate 6-digit code
-      const token = Math.floor(100000 + Math.random() * 900000).toString();
-      admin.recoveryRequest = {
-        token,
-        requestedAt: Date.now(),
-        expiresAt: Date.now() + 15 * 60 * 1000, // 15 mins
-      };
-
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
-
-      return {
-        success: true,
-        message: `Código de recuperação gerado para o e-mail do administrador (${admin.email}).`,
-        token,
-        registeredEmail: admin.email,
-      };
-    } catch (err: any) {
-      return { success: false, message: `Erro ao processar recuperação: ${err.message}` };
-    }
-  },
-
-  // Reset password using recovery token
-  resetPasswordWithToken(token: string, newPassword: string): {
-    success: boolean;
-    message: string;
-    token?: string;
-    user?: { id: string; name: string; email: string; role: string };
-  } {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
-      return { success: false, message: 'Nenhum administrador cadastrado.' };
-    }
-
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
-
-      if (!admin.recoveryRequest) {
-        return { success: false, message: 'Nenhuma solicitação de recuperação ativa.' };
-      }
-
-      if (Date.now() > admin.recoveryRequest.expiresAt) {
-        delete admin.recoveryRequest;
-        fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
-        return { success: false, message: 'O código de recuperação expirou. Solicite um novo.' };
-      }
-
-      if (admin.recoveryRequest.token !== token.trim()) {
-        return { success: false, message: 'Código de verificação incorreto.' };
-      }
-
-      if (!newPassword || newPassword.length < 6) {
-        return { success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' };
-      }
-
-      // Update password with fresh salt
-      const salt = crypto.randomBytes(16).toString('hex');
-      admin.passwordHash = hashPassword(newPassword.trim(), salt);
-      admin.salt = salt;
-      delete admin.recoveryRequest;
-
-      // Create new session token
-      const sessionToken = `admin_sess_${crypto.randomBytes(32).toString('hex')}`;
-      const now = Date.now();
-      admin.activeSessions = [
-        {
-          token: sessionToken,
-          createdAt: now,
-          expiresAt: now + 30 * 24 * 60 * 60 * 1000,
-        },
-      ];
-
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
-
-      return {
-        success: true,
-        message: 'Senha redefinida com sucesso! Você já foi autenticado.',
-        token: sessionToken,
-        user: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-        },
-      };
-    } catch (err: any) {
-      return { success: false, message: `Erro ao redefinir senha: ${err.message}` };
-    }
-  },
-
-  // Change password while logged in
-  changePassword(token: string, currentPassword: string, newPassword: string): {
-    success: boolean;
-    message: string;
-  } {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
+  }> {
+    const admin = readAdminFile();
+    if (!admin) {
       return { success: false, message: 'Administrador não cadastrado.' };
     }
 
     try {
-      const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-      const admin: ServerAdminUser = JSON.parse(content);
-
       const sess = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > Date.now());
       if (!sess) {
         return { success: false, message: 'Sessão inválida ou expirada. Faça login novamente.' };
       }
 
-      const inputHash = hashPassword(currentPassword, admin.salt);
+      const inputHash = hashPassword(currentPassword?.trim() || '', admin.salt);
       if (inputHash !== admin.passwordHash) {
         return { success: false, message: 'Senha atual incorreta.' };
       }
 
-      if (newPassword.length < 6) {
+      const cleanNew = newPassword?.trim() || '';
+      if (cleanNew.length < 6) {
         return { success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' };
       }
 
       const newSalt = crypto.randomBytes(16).toString('hex');
-      admin.passwordHash = hashPassword(newPassword.trim(), newSalt);
+      admin.passwordHash = hashPassword(cleanNew, newSalt);
       admin.salt = newSalt;
+      admin.activeSessions = [sess];
 
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), 'utf-8');
-      return { success: true, message: 'Senha de administrador alterada com sucesso!' };
+      writeAdminFile(admin);
+      return {
+        success: true,
+        message: 'Senha atualizada com sucesso! Todos os novos acessos em qualquer aparelho usarão esta nova senha.',
+      };
     } catch (err: any) {
       return { success: false, message: `Falha ao alterar senha: ${err.message}` };
     }

@@ -177,21 +177,19 @@ app.post('/api/sales/solve-objection', async (req, res) => {
 
 // ================= AUTHENTICATION & MASTER ADMIN ENDPOINTS =================
 // Status: is admin registered?
-app.get('/api/auth/status', (req, res) => {
-  const hasAdmin = serverAuthStore.hasAdmin();
-  const adminInfo = serverAuthStore.getAdminSafe();
-  return res.json({
-    hasAdmin,
-    adminEmail: adminInfo?.email || null,
-    adminName: adminInfo?.name || null,
-    createdAt: adminInfo?.createdAt || null,
-  });
+app.get('/api/auth/status', async (req, res) => {
+  try {
+    const status = await serverAuthStore.getAdminPublicStatus();
+    return res.json(status);
+  } catch (err: any) {
+    return res.status(500).json({ hasAdmin: false, error: err.message });
+  }
 });
 
 // Register the FIRST and ONLY administrator
-app.post('/api/auth/register-master', (req, res) => {
+app.post('/api/auth/register-master', async (req, res) => {
   try {
-    const result = serverAuthStore.registerMasterAdmin(req.body);
+    const result = await serverAuthStore.registerMasterAdmin(req.body);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
@@ -199,10 +197,10 @@ app.post('/api/auth/register-master', (req, res) => {
 });
 
 // Login as master administrator
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const result = serverAuthStore.login(email, password);
+    const result = await serverAuthStore.login(email, password);
     return res.status(result.success ? 200 : 401).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
@@ -210,10 +208,10 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // Verify active session token
-app.post('/api/auth/verify-session', (req, res) => {
+app.post('/api/auth/verify-session', async (req, res) => {
   try {
     const { token } = req.body;
-    const result = serverAuthStore.validateSession(token);
+    const result = await serverAuthStore.validateSession(token);
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ valid: false, message: err.message });
@@ -221,11 +219,11 @@ app.post('/api/auth/verify-session', (req, res) => {
 });
 
 // Logout
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
   try {
     const { token } = req.body;
     if (token) {
-      serverAuthStore.logout(token);
+      await serverAuthStore.logout(token);
     }
     return res.json({ success: true });
   } catch {
@@ -233,44 +231,23 @@ app.post('/api/auth/logout', (req, res) => {
   }
 });
 
-// Request password recovery
-app.post('/api/auth/recovery/request', (req, res) => {
-  try {
-    const { email } = req.body;
-    const result = serverAuthStore.requestPasswordRecovery(email);
-    return res.status(result.success ? 200 : 400).json(result);
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// Reset password with recovery token
-app.post('/api/auth/recovery/reset', (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    const result = serverAuthStore.resetPasswordWithToken(token, newPassword);
-    return res.status(result.success ? 200 : 400).json(result);
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 // Change password while logged in
-app.post('/api/auth/change-password', (req, res) => {
+app.post('/api/auth/change-password', async (req, res) => {
   try {
     const { token, currentPassword, newPassword } = req.body;
-    const result = serverAuthStore.changePassword(token, currentPassword, newPassword);
+    const result = await serverAuthStore.changePassword(token, currentPassword, newPassword);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Emergency / User-requested reset of system admin
-app.post('/api/auth/reset-system-admin', (req, res) => {
+// Protected reset of system admin (requires active session + password)
+app.post('/api/auth/reset-system-admin', async (req, res) => {
   try {
-    const result = serverAuthStore.resetAdmin();
-    return res.json(result);
+    const { token, currentPassword } = req.body || {};
+    const result = await serverAuthStore.resetAdmin({ token, currentPassword });
+    return res.status(result.unauthorized ? 401 : 200).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
   }

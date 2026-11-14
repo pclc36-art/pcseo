@@ -105,10 +105,17 @@ export default function App() {
       try {
         const status = await authService.checkSystemStatus();
         setSystemHasAdmin(status.hasAdmin);
-        const loggedUser = authService.getCurrentUser();
-        setCurrentAdmin(loggedUser);
+        if (!status.hasAdmin) {
+          setCurrentAdmin(null);
+        } else if (status.serverConnected) {
+          const verifiedUser = await authService.verifySessionWithServer();
+          setCurrentAdmin(verifiedUser);
+        } else {
+          setCurrentAdmin(authService.getCurrentUser());
+        }
       } catch (e) {
         console.error('Failed to initialize auth system', e);
+        setCurrentAdmin(null);
       } finally {
         setAuthLoading(false);
       }
@@ -348,6 +355,31 @@ export default function App() {
   };
 
   const headerInfo = getHeaderInfo();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-slate-300 gap-3">
+        <div className="w-10 h-10 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+        <p className="text-xs font-medium text-slate-400">Verificando acesso exclusivo...</p>
+      </div>
+    );
+  }
+
+  if (!currentAdmin) {
+    return (
+      <>
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <AdminGatekeeperView
+          hasAdmin={systemHasAdmin}
+          onAuthenticated={(user) => {
+            setSystemHasAdmin(true);
+            setCurrentAdmin(user);
+          }}
+          onNotify={showToast}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans w-full max-w-full min-w-0 overflow-x-hidden selection:bg-cyan-500/20 selection:text-cyan-200">

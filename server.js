@@ -293,82 +293,456 @@ ${JSON.stringify(request, null, 2)}
   }
   return null;
 }
+function decodeHtmlEntities(input) {
+  return input.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&nbsp;/gi, " ").replace(/&#(\d+);/g, (_, num) => {
+    const code = Number(num);
+    return Number.isFinite(code) ? String.fromCharCode(code) : "";
+  });
+}
+function extractAttr(tag, attrName) {
+  const regex = new RegExp(`(?:^|\\s)${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
+  const match = tag.match(regex);
+  const val = match ? match[1] ?? match[2] ?? match[3] ?? "" : "";
+  return val ? decodeHtmlEntities(val.trim()) : null;
+}
+function resolveAbsoluteUrl(raw, baseUrl) {
+  if (!raw) return null;
+  const cleaned = decodeHtmlEntities(raw).trim().replace(/^['"]|['"]$/g, "");
+  if (!cleaned || cleaned.startsWith("data:") || cleaned.startsWith("javascript:") || cleaned.startsWith("#")) {
+    return null;
+  }
+  try {
+    const parsed = new URL(cleaned, baseUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+function isTrackingOrJunkImage(url, alt, classes) {
+  const lower = `${url} ${alt} ${classes}`.toLowerCase();
+  if (lower.includes("facebook.com/tr") || lower.includes("google-analytics") || lower.includes("googletagmanager") || lower.includes("doubleclick") || lower.includes("/pixel") || lower.includes("1x1") || lower.includes("spacer") || lower.includes("blank.gif") || lower.includes("gravatar.com") || lower.includes("s.w.org/images/core/emoji") || lower.includes("twemoji")) {
+    return true;
+  }
+  if (url.toLowerCase().endsWith(".ico")) return true;
+  return false;
+}
+function classifyScrapedImage(url, alt, contextHint, isLogoCandidate, isHeroCandidate) {
+  const signal = `${url} ${alt} ${contextHint}`.toLowerCase();
+  if (isLogoCandidate || /\b(logo|logotipo|logomarca|marca|brand)\b/.test(signal)) {
+    return {
+      category: "logo",
+      label: alt && alt.length > 2 ? `Logotipo Oficial \u2014 ${alt.slice(0, 60)}` : "Logotipo Oficial do Cliente",
+      suggestedSection: "Header, Navbar & Rodap\xE9"
+    };
+  }
+  if (/\b(dr|dra|doutor|doutora|equipe|team|sobre|about|fundador|founder|soci[oa]|diretor|ceo|advogad|medic|dentist|perfil|profile|autor)\b/.test(signal)) {
+    return {
+      category: "team",
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : "Foto Real do Respons\xE1vel / Equipe",
+      suggestedSection: "Se\xE7\xE3o Sobre / Autoridade & Especialista"
+    };
+  }
+  if (isHeroCandidate || /\b(hero|banner|capa|slide|slider|destaque|cover|showcase)\b/.test(signal)) {
+    return {
+      category: "hero",
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : "Imagem Hero / Destaque Principal do Cliente",
+      suggestedSection: "Primeira Dobra (Hero Section)"
+    };
+  }
+  if (/\b(clinica|clínica|escritorio|escritório|consultorio|consultório|espaco|espaço|sala|estrutura|ambiente|recepcao|recepção|fachada|loja|office|studio)\b/.test(signal)) {
+    return {
+      category: "facility",
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : "Foto Real das Instala\xE7\xF5es / Espa\xE7o",
+      suggestedSection: "Infraestrutura / Sobre o Espa\xE7o"
+    };
+  }
+  if (/\b(serv|tratamento|procedimento|produto|solucao|solução|implant|estetica|estética|portfolio|portfólio|projeto|caso|case)\b/.test(signal)) {
+    return {
+      category: "services",
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : "Imagem Real de Servi\xE7o / Solu\xE7\xE3o",
+      suggestedSection: "Vitrine de Servi\xE7os / Solu\xE7\xF5es"
+    };
+  }
+  return {
+    category: "other",
+    label: alt && alt.length > 2 ? alt.slice(0, 70) : "Imagem Real Extra\xEDda do Site do Cliente",
+    suggestedSection: "Conte\xFAdo / Galeria do Site"
+  };
+}
+function formatBrWhatsappOrPhone(rawDigits) {
+  const digits = rawDigits.replace(/\D/g, "");
+  const local = digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return rawDigits;
+}
 async function scrapeSiteHtmlPreview(targetUrl) {
   try {
     const fullUrl = targetUrl.startsWith("http") ? targetUrl : `https://${targetUrl}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
+    const timer = setTimeout(() => controller.abort(), 8e3);
     const resp = await fetch(fullUrl, {
       signal: controller.signal,
+      redirect: "follow",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
       }
     });
     clearTimeout(timer);
     if (!resp.ok) return null;
+    const finalUrl = resp.url || fullUrl;
     const html = await resp.text();
-    const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    const ogImage = ogImageMatch ? ogImageMatch[1] : null;
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : null;
-    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
-    const description = descMatch ? descMatch[1].trim() : null;
-    const imgMatches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*alt=["']?([^"'>]*)["']?/gi)];
-    const images = imgMatches.slice(0, 10).map((m, idx) => ({
-      src: m[1],
-      alt: m[2] || `Imagem ${idx + 1}`
-    })).filter((img) => !img.src.includes("pixel") && !img.src.includes("analytics") && !img.src.endsWith(".svg"));
-    const waMatches = html.match(/(?:wa\.me|api\.whatsapp\.com\/send\?phone=)(\d+)/gi);
-    const phoneMatches = html.match(/(?:\(?\d{2}\)?\s*)?(?:9\d{4}[-\s]?\d{4}|\d{4}[-\s]?\d{4})/g);
-    const emailMatches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-    const cnpjMatches = html.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g);
-    const instaMatches = html.match(/instagram\.com\/([a-zA-Z0-9._-]+)/i);
-    const textSample = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "").replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 3e3);
+    if (!html || html.length < 50) return null;
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, " ").trim()) : null;
+    let siteName = null;
+    let description = null;
+    let ogImage = null;
+    let ogTitle = null;
+    const metaTags = [...html.matchAll(/<meta\b[^>]*>/gi)];
+    for (const m of metaTags) {
+      const tag = m[0];
+      const name = (extractAttr(tag, "name") || "").toLowerCase();
+      const prop = (extractAttr(tag, "property") || "").toLowerCase();
+      const content = extractAttr(tag, "content");
+      if (!content) continue;
+      if (name === "description" && !description) description = content;
+      if (prop === "og:description" && !description) description = content;
+      if (prop === "og:site_name" && !siteName) siteName = content;
+      if (prop === "og:title" && !ogTitle) ogTitle = content;
+      if ((prop === "og:image" || prop === "og:image:secure_url" || name === "twitter:image") && !ogImage) {
+        ogImage = resolveAbsoluteUrl(content, finalUrl);
+      }
+    }
+    let ldBusinessName = null;
+    let ldOwnerName = null;
+    let ldRole = null;
+    let ldLogo = null;
+    const ldImages = [];
+    const ldPhones = [];
+    const ldEmails = [];
+    const ldSocials = [];
+    let ldAddress = null;
+    let ldCityState = null;
+    const ldMatches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+    const inspectLdNode = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach(inspectLdNode);
+        return;
+      }
+      if (Array.isArray(node["@graph"])) {
+        inspectLdNode(node["@graph"]);
+      }
+      const nodeType = Array.isArray(node["@type"]) ? node["@type"].join(" ") : String(node["@type"] || "");
+      const isOrg = /Organization|LocalBusiness|Medical|Dentist|Legal|Attorney|Store|Professional|Corporation|Health/i.test(nodeType);
+      const isPerson = /Person/i.test(nodeType);
+      if (isOrg && typeof node.name === "string" && !ldBusinessName) {
+        ldBusinessName = node.name.trim();
+      }
+      if (isPerson && typeof node.name === "string" && !ldOwnerName) {
+        ldOwnerName = node.name.trim();
+        if (typeof node.jobTitle === "string" && !ldRole) ldRole = node.jobTitle.trim();
+      }
+      if (node.founder) {
+        const f = Array.isArray(node.founder) ? node.founder[0] : node.founder;
+        if (typeof f === "string" && !ldOwnerName) ldOwnerName = f.trim();
+        else if (f && typeof f.name === "string" && !ldOwnerName) {
+          ldOwnerName = f.name.trim();
+          if (typeof f.jobTitle === "string" && !ldRole) ldRole = f.jobTitle.trim();
+        }
+      }
+      if (typeof node.telephone === "string") ldPhones.push(node.telephone.trim());
+      if (typeof node.email === "string") ldEmails.push(node.email.trim());
+      const extractMediaUrl = (val) => {
+        if (!val) return null;
+        if (typeof val === "string") return resolveAbsoluteUrl(val, finalUrl);
+        if (typeof val === "object" && typeof val.url === "string") return resolveAbsoluteUrl(val.url, finalUrl);
+        if (typeof val === "object" && typeof val.contentUrl === "string") return resolveAbsoluteUrl(val.contentUrl, finalUrl);
+        return null;
+      };
+      const maybeLogo = extractMediaUrl(node.logo);
+      if (maybeLogo && !ldLogo) ldLogo = maybeLogo;
+      if (Array.isArray(node.image)) {
+        node.image.forEach((item) => {
+          const u = extractMediaUrl(item);
+          if (u) ldImages.push(u);
+        });
+      } else {
+        const u = extractMediaUrl(node.image);
+        if (u) ldImages.push(u);
+      }
+      if (node.address && typeof node.address === "object" && !ldAddress) {
+        const addr = node.address;
+        const parts = [addr.streetAddress, addr.addressLocality, addr.addressRegion, addr.postalCode].filter((x) => typeof x === "string" && x.trim().length > 0).map((x) => x.trim());
+        if (parts.length > 0) ldAddress = parts.join(", ");
+        if (addr.addressLocality) {
+          ldCityState = addr.addressRegion ? `${addr.addressLocality.trim()} / ${addr.addressRegion.trim()}` : addr.addressLocality.trim();
+        }
+      }
+      if (Array.isArray(node.sameAs)) {
+        node.sameAs.forEach((s) => {
+          if (typeof s === "string") ldSocials.push(s);
+        });
+      }
+    };
+    for (const m of ldMatches) {
+      try {
+        const parsed = JSON.parse(m[1].trim());
+        inspectLdNode(parsed);
+      } catch {
+      }
+    }
+    let iconLogoUrl = null;
+    const linkTags = [...html.matchAll(/<link\b[^>]*>/gi)];
+    for (const m of linkTags) {
+      const tag = m[0];
+      const rel = (extractAttr(tag, "rel") || "").toLowerCase();
+      const href = extractAttr(tag, "href");
+      if (!href) continue;
+      if (rel.includes("apple-touch-icon")) {
+        iconLogoUrl = resolveAbsoluteUrl(href, finalUrl);
+        break;
+      }
+      if (rel.includes("icon") && !href.toLowerCase().endsWith(".ico") && !iconLogoUrl) {
+        iconLogoUrl = resolveAbsoluteUrl(href, finalUrl);
+      }
+    }
+    const imageMap = /* @__PURE__ */ new Map();
+    const pushImage = (rawUrl, alt, contextHint, isLogoCandidate = false, isHeroCandidate = false) => {
+      const absUrl = resolveAbsoluteUrl(rawUrl, finalUrl);
+      if (!absUrl) return;
+      if (isTrackingOrJunkImage(absUrl, alt, contextHint)) return;
+      const dedupKey = absUrl.split("#")[0];
+      if (imageMap.has(dedupKey)) return;
+      const classified = classifyScrapedImage(absUrl, alt, contextHint, isLogoCandidate, isHeroCandidate);
+      imageMap.set(dedupKey, {
+        id: `real_img_${imageMap.size + 1}`,
+        url: absUrl,
+        alt: alt || classified.label,
+        category: classified.category,
+        label: classified.label,
+        suggestedSection: classified.suggestedSection,
+        isReal: true
+      });
+    };
+    if (ldLogo) {
+      pushImage(ldLogo, `${ldBusinessName || siteName || "Marca"} Logotipo`, "logo", true, false);
+    }
+    const imgTags = [...html.matchAll(/<img\b[^>]*>/gi)];
+    let firstLargeNonLogoAssigned = false;
+    for (const m of imgTags) {
+      const tag = m[0];
+      const alt = extractAttr(tag, "alt") || extractAttr(tag, "title") || "";
+      const cls = `${extractAttr(tag, "class") || ""} ${extractAttr(tag, "id") || ""}`;
+      let src = extractAttr(tag, "data-src") || extractAttr(tag, "data-lazy-src") || extractAttr(tag, "data-original") || extractAttr(tag, "src");
+      const srcset = extractAttr(tag, "data-srcset") || extractAttr(tag, "srcset");
+      if ((!src || src.startsWith("data:")) && srcset) {
+        const firstSrcSet = srcset.split(",")[0]?.trim().split(/\s+/)[0];
+        if (firstSrcSet) src = firstSrcSet;
+      }
+      if (!src) continue;
+      const abs = resolveAbsoluteUrl(src, finalUrl);
+      if (!abs) continue;
+      if (isTrackingOrJunkImage(abs, alt, cls)) continue;
+      const looksLikeLogo = /\b(logo|logotipo|marca|brand)\b/i.test(`${abs} ${alt} ${cls}`);
+      const isHero = !looksLikeLogo && !firstLargeNonLogoAssigned && !/icon|avatar|flag|badge|selo/i.test(`${abs} ${cls}`);
+      if (isHero) firstLargeNonLogoAssigned = true;
+      pushImage(abs, alt, cls, looksLikeLogo, isHero);
+    }
+    const sourceTags = [...html.matchAll(/<source\b[^>]*>/gi)];
+    for (const m of sourceTags) {
+      const tag = m[0];
+      const srcset = extractAttr(tag, "srcset") || extractAttr(tag, "data-srcset");
+      if (!srcset) continue;
+      const firstUrl = srcset.split(",")[0]?.trim().split(/\s+/)[0];
+      if (firstUrl) pushImage(firstUrl, "", extractAttr(tag, "media") || "", false, false);
+    }
+    const bgMatches = [...html.matchAll(/background(?:-image)?\s*:[^;]*url\(\s*(['"]?)([^'")]+)\1\s*\)/gi)];
+    for (const m of bgMatches) {
+      const bgUrl = m[2];
+      if (bgUrl) {
+        const looksHero = /hero|banner|bg|capa|slide/i.test(bgUrl);
+        pushImage(bgUrl, "", looksHero ? "hero banner" : "background", false, looksHero);
+      }
+    }
+    for (const u of ldImages) {
+      pushImage(u, ldBusinessName || "", "schema json-ld", false, !firstLargeNonLogoAssigned);
+    }
+    if (ogImage) {
+      pushImage(ogImage, ogTitle || title || "Imagem Destaque (OpenGraph)", "og:image hero", false, true);
+    }
+    const hasDetectedLogo = Array.from(imageMap.values()).some((img) => img.category === "logo");
+    if (!hasDetectedLogo && iconLogoUrl) {
+      pushImage(iconLogoUrl, `\xCDcone / Logotipo ${ldBusinessName || siteName || ""}`.trim(), "logo icon", true, false);
+    }
+    const categoryOrder = {
+      logo: 0,
+      hero: 1,
+      team: 2,
+      services: 3,
+      facility: 4,
+      other: 5
+    };
+    const images = Array.from(imageMap.values()).sort((a, b) => categoryOrder[a.category] - categoryOrder[b.category]).slice(0, 18);
+    const detectedLogoUrl = images.find((i) => i.category === "logo")?.url || ldLogo || iconLogoUrl || null;
+    const stripTags = (s) => decodeHtmlEntities(s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    const h1 = h1Match ? stripTags(h1Match[1]) : null;
+    const headingMatches = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)];
+    const headings = Array.from(
+      new Set(
+        headingMatches.map((m) => stripTags(m[1])).filter((t) => t.length >= 4 && t.length <= 140)
+      )
+    ).slice(0, 15);
+    const servicesDetected = headings.filter((h) => h !== h1 && h.split(" ").length <= 10).slice(0, 8);
+    const textSample = decodeHtmlEntities(
+      html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ").replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ").replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, " ").replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    ).slice(0, 3500);
+    const waLinks = [
+      ...html.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^"']*?phone=|whatsapp\.com\/send\?[^"']*?phone=)(\d{10,15})/gi)
+    ];
+    const whatsapp = waLinks[0]?.[1] ? formatBrWhatsappOrPhone(waLinks[0][1]) : null;
+    const telLinks = [...html.matchAll(/href=["']tel:([^"']+)["']/gi)].map(
+      (m) => formatBrWhatsappOrPhone(m[1])
+    );
+    const bodyPhoneMatches = textSample.match(/(?:\+?55\s*)?\(?\d{2}\)?\s*(?:9\d{4}|\d{4})[-\s]?\d{4}/g) || [];
+    const phones = Array.from(
+      new Set([...ldPhones, ...telLinks, ...bodyPhoneMatches].map((p) => p.trim()).filter(Boolean))
+    ).slice(0, 4);
+    const mailtoMatches = [...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map((m) => m[1].trim());
+    const rawEmailMatches = textSample.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const emails = Array.from(
+      new Set(
+        [...ldEmails, ...mailtoMatches, ...rawEmailMatches].filter(
+          (e) => e && !/\.(png|jpg|jpeg|webp|gif|svg)$/i.test(e) && !/@(?:example|sentry|wixpress|domain)\./i.test(e)
+        )
+      )
+    ).slice(0, 3);
+    const cnpjMatches = textSample.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g);
+    const cnpj = cnpjMatches?.[0] || null;
+    const credentialMatch = textSample.match(
+      /\b(?:OAB|CRM|CRO|CREA|CRECI|CAU|CRP|CRN|CRBM|CREFITO|COREN)[\/\s\-]*[A-Z]{2}\s*[-:]?\s*[\d.\-]+\b/i
+    );
+    const credential = credentialMatch ? credentialMatch[0].replace(/\s+/g, " ").trim() : ldRole;
+    const allLinksText = `${html} ${ldSocials.join(" ")}`;
+    const instaMatch = allLinksText.match(/instagram\.com\/([a-zA-Z0-9._]{2,40})/i);
+    const instagram = instaMatch?.[1] && !["p", "reel", "reels", "stories", "explore"].includes(instaMatch[1].toLowerCase()) ? `@${instaMatch[1].replace(/\/$/, "")}` : null;
+    const fbMatch = allLinksText.match(/facebook\.com\/(?!sharer|share\.php|plugins|tr\b)([a-zA-Z0-9._\-]{2,60})/i);
+    const facebook = fbMatch?.[1] ? `https://facebook.com/${fbMatch[1]}` : null;
+    const liMatch = allLinksText.match(/linkedin\.com\/(?:company|in)\/([a-zA-Z0-9._\-]{2,60})/i);
+    const linkedin = liMatch?.[0] ? `https://www.${liMatch[0]}` : null;
+    const ytMatch = allLinksText.match(/youtube\.com\/(?:@|c\/|channel\/)([a-zA-Z0-9._\-]{2,60})/i);
+    const youtube = ytMatch?.[0] ? `https://www.${ytMatch[0]}` : null;
+    let address = ldAddress;
+    if (!address) {
+      const addrTagMatch = html.match(/<address[^>]*>([\s\S]*?)<\/address>/i);
+      if (addrTagMatch) {
+        const cleanedAddr = stripTags(addrTagMatch[1]);
+        if (cleanedAddr.length >= 8 && cleanedAddr.length <= 220) address = cleanedAddr;
+      }
+    }
+    if (!address) {
+      const brStreetMatch = textSample.match(
+        /(?:Rua|Av\.?|Avenida|Alameda|Travessa|Praça|Rodovia|Estrada)\s+[^•|\n]{6,95}?(?:CEP\s*:?\s*\d{5}-?\d{3}|\b[A-Z]{2}\b)/i
+      );
+      if (brStreetMatch) address = brStreetMatch[0].trim();
+    }
+    let cityState = ldCityState;
+    if (!cityState && address) {
+      const cityMatch = address.match(/([A-Za-zÀ-ÿ\s]{3,35})\s*[-\/]\s*(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/);
+      if (cityMatch) cityState = `${cityMatch[1].trim()} / ${cityMatch[2]}`;
+    }
+    let businessName = ldBusinessName || siteName || null;
+    if (!businessName && title) {
+      const splitTitle = title.split(/\s*[|—–\-:]\s*/).map((s) => s.trim()).filter(Boolean);
+      if (splitTitle.length > 0) {
+        businessName = splitTitle[splitTitle.length - 1].length <= 36 && splitTitle.length > 1 ? splitTitle[splitTitle.length - 1] : splitTitle[0];
+      }
+    }
     return {
+      finalUrl,
       title,
+      siteName,
       description,
+      h1,
+      headings,
       ogImage,
+      logoUrl: detectedLogoUrl,
       images,
-      whatsapp: waMatches?.[0] || null,
-      phones: phoneMatches?.slice(0, 3) || [],
-      emails: emailMatches?.slice(0, 2) || [],
-      cnpj: cnpjMatches?.[0] || null,
-      instagram: instaMatches?.[1] ? `@${instaMatches[1]}` : null,
+      businessName,
+      ownerName: ldOwnerName,
+      credential,
+      whatsapp,
+      phones,
+      emails,
+      address,
+      cityState,
+      cnpj,
+      instagram,
+      facebook,
+      linkedin,
+      youtube,
+      servicesDetected,
       textSample
     };
   } catch {
     return null;
   }
 }
-async function auditSiteWithGemini(request) {
+async function auditSiteWithGemini(request, preScrapedData) {
   const ai = getGeminiClient();
   if (!ai) return null;
-  const liveScrape = await scrapeSiteHtmlPreview(request.url);
+  const liveScrape = preScrapedData !== void 0 ? preScrapedData : await scrapeSiteHtmlPreview(request.url);
   const prompt = `Voc\xEA \xE9 o Auditor Independente e Engenheiro Chefe de Reengenharia Digital do MASTER SITE ENGINE 10.0 (QUALITY CONTROL, PERFORMANCE AUDIT & REENGINEERING SYSTEM).
 Sua base normativa OBRIGAT\xD3RIA E SUPREMA \xE9 o MASTER SITE ENGINE 10.0.
 
-O usu\xE1rio forneceu a seguinte URL para auditoria completa e gera\xE7\xE3o do MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O:
-URL: "${request.url}"
+REGRA ABSOLUTA E INEGOCI\xC1VEL DE PRESERVA\xC7\xC3O DO CLIENTE:
+Sempre que sugerir melhorias ou gerar o Mega Prompt de Recria\xE7\xE3o para este site auditado:
+1. MANTENHA 100% DAS IMAGENS REAIS DO CLIENTE extra\xEDdas do link (mesmas URLs exatas de logotipo, hero, fotos da equipe/profissional, fotos do espa\xE7o e servi\xE7os). \xC9 PROIBIDO substituir fotos reais extra\xEDdas por imagens gen\xE9ricas de bancos de imagem (Unsplash/Pexels) ou inventar URLs fict\xEDcias.
+2. MANTENHA 100% DAS INFORMA\xC7\xD5ES REAIS DO CLIENTE encontradas no site (nome da marca/empresa, respons\xE1vel t\xE9cnico, OAB/CRM/CRO/CREA, WhatsApp, telefone, e-mail, endere\xE7o completo, cidade/UF, CNPJ, Instagram/redes sociais, servi\xE7os reais e biografia/hist\xF3ria). Se algum dado n\xE3o foi detectado no HTML, indique claramente "N\xE3o identificado no HTML \u2014 confirmar com cliente" ao inv\xE9s de inventar dados fict\xEDcios.
+3. TODAS AS MELHORIAS SUGERIDAS ("recommendedImprovements") devem otimizar estrutura, headline, CTA, convers\xE3o, SEO e velocidade (como converter as fotos atuais para WebP/AVIF mantendo EXATAMENTE as mesmas imagens do cliente e aplicando os contatos e textos reais do cliente).
+4. O "reengineeringMegaPrompt" DEVE conter uma se\xE7\xE3o expl\xEDcita listando todas as URLs exatas de imagens do cliente e todos os dados cadastrais reais a preservar integralmente.
+
+URL para auditoria: "${request.url}"
+${liveScrape?.finalUrl ? `URL final ap\xF3s redirecionamentos: "${liveScrape.finalUrl}"` : ""}
 Nicho / Segmento: "${request.niche || "Auto-detectar pelo link e conte\xFAdo"}"
 Objetivo: "${request.targetObjective || "Convers\xE3o de Leads e Agendamentos"}"
 
-${liveScrape ? `DADOS RASTREADOS DIRETAMENTE DO SITE (AO VIVO):
-- T\xEDtulo da P\xE1gina: ${liveScrape.title || "N/A"}
+${liveScrape ? `DADOS E ATIVOS REAIS RASTREADOS DIRETAMENTE DO SITE (PRESERVAR INTEGRALMENTE):
+- Nome da Marca / Empresa Detectado: ${liveScrape.businessName || "N/A"}
+- T\xEDtulo da P\xE1gina (<title>): ${liveScrape.title || "N/A"}
+- H1 Principal: ${liveScrape.h1 || "N/A"}
+- Principais T\xEDtulos / Se\xE7\xF5es Detectadas: ${JSON.stringify(liveScrape.headings)}
+- Servi\xE7os / Produtos Identificados: ${JSON.stringify(liveScrape.servicesDetected)}
 - Meta Descri\xE7\xE3o: ${liveScrape.description || "N/A"}
-- Imagem OpenGraph (og:image): ${liveScrape.ogImage || "N/A"}
-- Imagens Encontradas no HTML: ${JSON.stringify(liveScrape.images.slice(0, 5))}
-- WhatsApp Detectado: ${liveScrape.whatsapp || "N/A"}
+- Respons\xE1vel / Fundador Detectado: ${liveScrape.ownerName || "N/A"}
+- Registro / Credencial: ${liveScrape.credential || "N/A"}
+- WhatsApp Oficial: ${liveScrape.whatsapp || "N/A"}
 - Telefones: ${liveScrape.phones.join(", ") || "N/A"}
 - E-mails: ${liveScrape.emails.join(", ") || "N/A"}
+- Endere\xE7o: ${liveScrape.address || "N/A"}
+- Cidade / UF: ${liveScrape.cityState || "N/A"}
 - CNPJ: ${liveScrape.cnpj || "N/A"}
-- Instagram: ${liveScrape.instagram || "N/A"}
-- Trecho de Texto Real da P\xE1gina: ${liveScrape.textSample.slice(0, 1200)}
-` : ""}
+- Redes Sociais: Instagram=${liveScrape.instagram || "N/A"}, Facebook=${liveScrape.facebook || "N/A"}, LinkedIn=${liveScrape.linkedin || "N/A"}
+- Logotipo Detectado: ${liveScrape.logoUrl || "N/A"}
+- Imagem OpenGraph: ${liveScrape.ogImage || "N/A"}
+- IMAGENS REAIS DO CLIENTE ENCONTRADAS NO HTML (${liveScrape.images.length} \u2014 PRESERVAR URLs EXATAS):
+${JSON.stringify(liveScrape.images.slice(0, 15), null, 2)}
+- Conte\xFAdo Textual Real da P\xE1gina:
+${liveScrape.textSample.slice(0, 2200)}
+` : "Obs: N\xE3o foi poss\xEDvel baixar o HTML ao vivo do servidor alvo (bloqueio/timeout). Assinale claramente quais campos dependem de confirma\xE7\xE3o com o cliente e n\xE3o invente URLs de fotos como se fossem reais."}
 
 EXECUTE A AUDITORIA E RETORNE UM JSON V\xC1LIDO contendo:
 1. "domain": nome do dom\xEDnio limpo (ex: "clinicaodonto.com.br")
-2. "primaryNicheDetected": nicho identificado
+2. "primaryNicheDetected": nicho identificado com base no conte\xFAdo real
 3. "overallScore": n\xFAmero de 0 a 100 calculado pela soma ponderada oficial dos 8 pilares:
    - Design e identidade visual (20%)
    - SEO e posicionamento org\xE2nico (20%)
@@ -380,10 +754,10 @@ EXECUTE A AUDITORIA E RETORNE UM JSON V\xC1LIDO contendo:
    - Qualidade t\xE9cnica e c\xF3digo (5%)
 4. "scoreLabel": classifica\xE7\xE3o oficial (95-100: "Excel\xEAncia Internacional", 90-94: "Excelente", 80-89: "Muito Bom", 70-79: "Regular", 50-69: "Insatisfat\xF3rio", 0-49: "Cr\xEDtico")
 5. "approvalStatus": "APROVADO" (>=90 e sem bloqueio), "APROVADO COM MELHORIAS" (80-89), "EXIGE CORRE\xC7\xD5ES" (70-79), ou "REPROVADO" (<70 ou com bloqueio P0)
-6. "executiveSummary": resumo executivo rigoroso de 3-4 frases em tom de auditor independente
-7. "ownerInfo": objeto com dados extra\xEDdos { businessName, ownerOrLeaderName, roleOrCredential, whatsapp, phone, email, fullAddress, cityState, cnpj, instagram, bioOrAboutSummary }
-8. "extractedImages": array com os ativos visuais reais detectados ou sugeridos para o novo projeto
-9. "criticalBlockers": array com bloqueadores cr\xEDticos encontrados (ex: formul\xE1rio quebrado, lentid\xE3o extrema mobile, aus\xEAncia de UVP, promessas falsas) com { id, title, evidence, impact, correction, priority: 'P0'|'P1' }
+6. "executiveSummary": resumo executivo rigoroso de 3-4 frases em tom de auditor independente mencionando os pontos reais encontrados
+7. "ownerInfo": objeto preservando fielmente os dados reais extra\xEDdos { businessName, ownerOrLeaderName, roleOrCredential, whatsapp, phone, email, fullAddress, cityState, cnpj, instagram, facebook, linkedin, youtube, bioOrAboutSummary }
+8. "extractedImages": array preservando EXATAMENTE as imagens reais rastreadas acima (cada objeto com { id, url, alt, category, label, suggestedSection, isReal: true }). N\xC3O substitua por URLs de Unsplash/Pexels!
+9. "criticalBlockers": array com bloqueadores cr\xEDticos reais encontrados { id, title, evidence, impact, correction, priority: 'P0'|'P1' }
 10. "categories10": objeto com as 8 categorias oficiais do Master Site Engine 10.0 contendo { name, score, weight, status, description, masterPromptRule, currentFlaws, recommendations } para:
     - design (peso 20)
     - seo (peso 20)
@@ -394,19 +768,12 @@ EXECUTE A AUDITORIA E RETORNE UM JSON V\xC1LIDO contendo:
     - securityCompliance (peso 7)
     - technicalQuality (peso 5)
 DIRETRIZ SUPREMA DE VELOCIDADE (OBRIGAT\xD3RIO NOTA > 9.5 NO GOOGLE PAGESPEED INSIGHTS):
-Todo site e landing page DEVE ser concebido para ser ultrarr\xE1pido e atingir nota m\xEDnima de nove e meio (>= 9.5 / 95pts) no Google PageSpeed Insights tanto no Mobile quanto no Desktop.
-- LCP (Largest Contentful Paint) < 1.8s
-- CLS (Cumulative Layout Shift) < 0.05
-- INP / FID < 100ms
-- FCP < 1.0s
-- Imagens em WebP/AVIF (<150KB fundos, <80KB destaque, largura m\xE1xima 1920px desktop e 800px mobile)
-- V\xEDdeos em loop de 5-10s no servidor ou fachada lazy para YouTube/Vimeo.
-Na categoria "performance" e nos bloqueadores, avalie estritamente se o site atende ao crit\xE9rio de velocidade > 9.5.
+Todo site e landing page DEVE atingir nota >= 9.5 (95+) no Google PageSpeed Insights (Mobile e Desktop), com LCP < 1.8s, CLS < 0.05, INP < 100ms, FCP < 1.0s, convertendo as imagens REAIS do cliente para WebP/AVIF (<150KB fundos, <80KB destaque) SEM substitu\xED-las.
 
-11. "recommendedImprovements": array de 6 objetos com a\xE7\xF5es de melhoria concretas prontas para copiar
-12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O & REENGENHARIA 10.0 autossuficiente e completo para colar em ferramentas com IA (Lovable, Bolt, Cursor ou Studio), garantindo a meta inegoci\xE1vel de 9.5+ no PageSpeed Insights.
+11. "recommendedImprovements": array de 6 objetos { id, title, category, impact, masterPromptReference, currentIssue, improvedProposal, copyableContent } onde CADA melhoria usa os dados reais do cliente (nome, cidade, WhatsApp, servi\xE7os reais) e referencia a preserva\xE7\xE3o das fotos reais extra\xEDdas.
+12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O & REENGENHARIA 10.0 autossuficiente e completo, contendo se\xE7\xE3o expl\xEDcita com TODAS as URLs exatas das imagens do cliente e TODOS os dados reais do cliente para preserva\xE7\xE3o obrigat\xF3ria, mais meta 9.5+ PageSpeed.
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
+  const modelsToTry = ["gemini-4-hydrogen", "gemini-3.8-flash"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -418,7 +785,46 @@ Na categoria "performance" e nos bloqueadores, avalie estritamente se o site ate
       });
       const text = response.text;
       if (text) {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        if (liveScrape) {
+          if (liveScrape.images.length > 0) {
+            const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
+            const geminiImgs = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
+            const sanitizedGemini = geminiImgs.filter(
+              (g) => typeof g?.url === "string" && scrapedByUrl.has(g.url)
+            );
+            const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
+            const mergedImages = [
+              ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
+              ...liveScrape.images.filter((s) => !seenUrls.has(s.url))
+            ];
+            parsed.extractedImages = mergedImages;
+          }
+          parsed.ownerInfo = {
+            ...parsed.ownerInfo || {},
+            businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || "",
+            ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+            roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || "Confirmar com cliente",
+            whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+            phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+            email: liveScrape.emails[0] || parsed.ownerInfo?.email || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+            fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+            cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || "Confirmar cidade/UF",
+            cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || void 0,
+            instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || void 0,
+            facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || void 0,
+            linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || void 0,
+            youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || void 0
+          };
+          parsed.liveScrapedUsed = true;
+          parsed.preservedClientAssetCount = liveScrape.images.length;
+          parsed.siteTitle = liveScrape.title || void 0;
+          parsed.metaDescription = liveScrape.description || void 0;
+          parsed.h1Text = liveScrape.h1 || void 0;
+          parsed.extractedHeadings = liveScrape.headings;
+          parsed.extractedServices = liveScrape.servicesDetected;
+        }
+        return parsed;
       }
     } catch (err) {
       console.warn(`[Site Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
@@ -621,9 +1027,30 @@ Retorne um JSON com o esquema:
 
 // src/server/authStore.ts
 import fs from "fs";
+import os from "os";
 import path from "path";
 import crypto from "crypto";
-var DATA_DIR = path.resolve(process.cwd(), ".data");
+var CURRENT_AUTH_EPOCH = "reset_2026_exclusive_v1";
+var LEGACY_DATA_DIR = path.resolve(process.cwd(), ".data");
+var LEGACY_ADMIN_FILE = path.join(LEGACY_DATA_DIR, "admin_account.json");
+function resolvePersistentDataDir() {
+  const candidates = [
+    path.join(os.homedir(), ".master-site-prompt-studio"),
+    LEGACY_DATA_DIR
+  ];
+  for (const dir of candidates) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch {
+    }
+  }
+  return LEGACY_DATA_DIR;
+}
+var DATA_DIR = resolvePersistentDataDir();
 var ADMIN_FILE = path.join(DATA_DIR, "admin_account.json");
 function ensureDataDir() {
   try {
@@ -631,64 +1058,127 @@ function ensureDataDir() {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
   } catch (err) {
-    console.error("Failed to create .data directory:", err);
+    console.error("Failed to create auth data directory:", err);
   }
 }
 function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 1e4, 64, "sha512").toString("hex");
+  return crypto.pbkdf2Sync(password, salt, 1e5, 64, "sha512").toString("hex");
 }
-var serverAuthStore = {
-  // Check if admin is currently registered on the server
-  hasAdmin() {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return false;
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const data = JSON.parse(content);
-      return Boolean(data && data.email && data.passwordHash);
-    } catch {
-      return false;
+function maskEmail(email) {
+  const parts = email.split("@");
+  if (parts.length !== 2) return "***";
+  const [userPart, domainPart] = parts;
+  const maskedUser = userPart.length > 3 ? `${userPart[0]}${"*".repeat(Math.min(userPart.length - 2, 6))}${userPart[userPart.length - 1]}` : `${userPart[0] || "*"}***`;
+  return `${maskedUser}@${domainPart}`;
+}
+function safeUnlink(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
     }
-  },
-  // Read admin data safely (never returns passwordHash or salt)
-  getAdminSafe() {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return null;
+  } catch {
+  }
+}
+function writeAdminFile(admin) {
+  ensureDataDir();
+  const tempPath = `${ADMIN_FILE}.tmp.${process.pid}`;
+  fs.writeFileSync(tempPath, JSON.stringify(admin, null, 2), "utf-8");
+  fs.renameSync(tempPath, ADMIN_FILE);
+}
+function readAdminFile() {
+  ensureDataDir();
+  if (LEGACY_ADMIN_FILE !== ADMIN_FILE && fs.existsSync(LEGACY_ADMIN_FILE)) {
     try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const data = JSON.parse(content);
-      if (!data || !data.email) return null;
-      return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role || "super_admin",
-        createdAt: data.createdAt,
-        lastLogin: data.lastLogin
-      };
+      const legacyRaw = fs.readFileSync(LEGACY_ADMIN_FILE, "utf-8");
+      const legacyParsed = JSON.parse(legacyRaw);
+      if (legacyParsed.authEpoch !== CURRENT_AUTH_EPOCH) {
+        safeUnlink(LEGACY_ADMIN_FILE);
+      } else if (!fs.existsSync(ADMIN_FILE)) {
+        writeAdminFile(legacyParsed);
+        safeUnlink(LEGACY_ADMIN_FILE);
+      }
     } catch {
+      safeUnlink(LEGACY_ADMIN_FILE);
+    }
+  }
+  if (!fs.existsSync(ADMIN_FILE)) return null;
+  try {
+    const content = fs.readFileSync(ADMIN_FILE, "utf-8");
+    const data = JSON.parse(content);
+    if (!data || !data.email || !data.passwordHash || data.authEpoch !== CURRENT_AUTH_EPOCH) {
+      safeUnlink(ADMIN_FILE);
       return null;
     }
+    return data;
+  } catch {
+    return null;
+  }
+}
+var serverAuthStore = {
+  async hasAdmin() {
+    return Boolean(readAdminFile());
   },
-  // Reset admin (wipe admin account so the user can make a brand new registration)
-  resetAdmin() {
-    ensureDataDir();
+  async getAdminPublicStatus() {
+    const admin = readAdminFile();
+    if (!admin) {
+      return {
+        hasAdmin: false,
+        maskedEmail: null,
+        adminName: null,
+        createdAt: null,
+        authEpoch: CURRENT_AUTH_EPOCH
+      };
+    }
+    return {
+      hasAdmin: true,
+      maskedEmail: maskEmail(admin.email),
+      adminName: admin.name,
+      createdAt: admin.createdAt,
+      authEpoch: CURRENT_AUTH_EPOCH
+    };
+  },
+  async resetAdmin(params) {
+    const admin = readAdminFile();
+    if (!admin) {
+      safeUnlink(ADMIN_FILE);
+      safeUnlink(LEGACY_ADMIN_FILE);
+      return {
+        success: true,
+        message: "Sistema pronto para novo cadastro exclusivo."
+      };
+    }
+    const token = params?.token?.trim();
+    const currentPassword = params?.currentPassword?.trim();
+    const now = Date.now();
+    const hasValidToken = Boolean(
+      token && (admin.activeSessions || []).some((s) => s.token === token && s.expiresAt > now)
+    );
+    const hasValidPassword = Boolean(
+      currentPassword && hashPassword(currentPassword, admin.salt) === admin.passwordHash
+    );
+    if (!hasValidToken || currentPassword !== void 0 && !hasValidPassword) {
+      return {
+        success: false,
+        unauthorized: true,
+        message: "Autentica\xE7\xE3o inv\xE1lida para resetar o administrador. Informe sua senha atual corretamente."
+      };
+    }
     try {
-      if (fs.existsSync(ADMIN_FILE)) {
-        fs.unlinkSync(ADMIN_FILE);
-      }
-      return { success: true, message: "Cadastro de administrador reiniciado com sucesso. O sistema est\xE1 pronto para seu novo cadastro exclusivo." };
+      safeUnlink(ADMIN_FILE);
+      safeUnlink(LEGACY_ADMIN_FILE);
+      return {
+        success: true,
+        message: "Cadastro de administrador resetado com sucesso. Voc\xEA pode cadastrar sua nova senha exclusiva agora."
+      };
     } catch (err) {
       return { success: false, message: `Erro ao resetar administrador: ${err.message}` };
     }
   },
-  // Register the first and ONLY Administrator
-  registerMasterAdmin(data) {
-    ensureDataDir();
-    if (this.hasAdmin()) {
+  async registerMasterAdmin(data) {
+    if (await this.hasAdmin()) {
       return {
         success: false,
-        message: "O Administrador do sistema j\xE1 est\xE1 cadastrado. Novos cadastros est\xE3o bloqueados por seguran\xE7a."
+        message: "O Administrador exclusivo do sistema j\xE1 est\xE1 cadastrado. Novos cadastros est\xE3o bloqueados por seguran\xE7a."
       };
     }
     const cleanName = data.name?.trim();
@@ -710,6 +1200,7 @@ var serverAuthStore = {
       name: cleanName,
       email: cleanEmail,
       role: "super_admin",
+      authEpoch: CURRENT_AUTH_EPOCH,
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
       lastLogin: (/* @__PURE__ */ new Date()).toISOString(),
       passwordHash,
@@ -724,7 +1215,7 @@ var serverAuthStore = {
       ]
     };
     try {
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
+      writeAdminFile(admin);
       return {
         success: true,
         user: {
@@ -739,15 +1230,12 @@ var serverAuthStore = {
       return { success: false, message: `Falha ao salvar administrador no servidor: ${err.message}` };
     }
   },
-  // Log in as master admin
-  login(email, password) {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
+  async login(email, password) {
+    const admin = readAdminFile();
+    if (!admin) {
       return { success: false, message: "Nenhum administrador cadastrado no sistema." };
     }
     try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
       const cleanEmail = email?.trim().toLowerCase();
       if (admin.email.toLowerCase() !== cleanEmail) {
         return { success: false, message: "E-mail de administrador n\xE3o confere." };
@@ -766,8 +1254,8 @@ var serverAuthStore = {
       admin.activeSessions = [
         ...admin.activeSessions.filter((s) => s.expiresAt > now),
         { token: sessionToken, createdAt: now, expiresAt }
-      ].slice(-10);
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
+      ].slice(-25);
+      writeAdminFile(admin);
       return {
         success: true,
         user: {
@@ -782,153 +1270,60 @@ var serverAuthStore = {
       return { success: false, message: `Erro ao autenticar: ${err.message}` };
     }
   },
-  // Validate session token
-  validateSession(token) {
+  async validateSession(token) {
     if (!token) return { valid: false };
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return { valid: false };
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
-      const now = Date.now();
-      const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
-      if (!active) return { valid: false };
-      return {
-        valid: true,
-        user: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role
-        }
-      };
-    } catch {
-      return { valid: false };
-    }
+    const admin = readAdminFile();
+    if (!admin) return { valid: false };
+    const now = Date.now();
+    const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
+    if (!active) return { valid: false };
+    return {
+      valid: true,
+      user: {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        createdAt: admin.createdAt
+      }
+    };
   },
-  // Destroy session
-  logout(token) {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) return;
+  async logout(token) {
+    const admin = readAdminFile();
+    if (!admin) return;
     try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
       admin.activeSessions = (admin.activeSessions || []).filter((s) => s.token !== token);
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
+      writeAdminFile(admin);
     } catch {
     }
   },
-  // Request password recovery
-  requestPasswordRecovery(email) {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
-      return { success: false, message: "Nenhum administrador cadastrado no sistema." };
-    }
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
-      const cleanEmail = email?.trim().toLowerCase();
-      if (admin.email.toLowerCase() !== cleanEmail) {
-        return {
-          success: false,
-          message: "O e-mail digitado n\xE3o corresponde ao administrador cadastrado no sistema."
-        };
-      }
-      const token = Math.floor(1e5 + Math.random() * 9e5).toString();
-      admin.recoveryRequest = {
-        token,
-        requestedAt: Date.now(),
-        expiresAt: Date.now() + 15 * 60 * 1e3
-        // 15 mins
-      };
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
-      return {
-        success: true,
-        message: `C\xF3digo de recupera\xE7\xE3o gerado para o e-mail do administrador (${admin.email}).`,
-        token,
-        registeredEmail: admin.email
-      };
-    } catch (err) {
-      return { success: false, message: `Erro ao processar recupera\xE7\xE3o: ${err.message}` };
-    }
-  },
-  // Reset password using recovery token
-  resetPasswordWithToken(token, newPassword) {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
-      return { success: false, message: "Nenhum administrador cadastrado." };
-    }
-    try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
-      if (!admin.recoveryRequest) {
-        return { success: false, message: "Nenhuma solicita\xE7\xE3o de recupera\xE7\xE3o ativa." };
-      }
-      if (Date.now() > admin.recoveryRequest.expiresAt) {
-        delete admin.recoveryRequest;
-        fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
-        return { success: false, message: "O c\xF3digo de recupera\xE7\xE3o expirou. Solicite um novo." };
-      }
-      if (admin.recoveryRequest.token !== token.trim()) {
-        return { success: false, message: "C\xF3digo de verifica\xE7\xE3o incorreto." };
-      }
-      if (!newPassword || newPassword.length < 6) {
-        return { success: false, message: "A nova senha deve ter no m\xEDnimo 6 caracteres." };
-      }
-      const salt = crypto.randomBytes(16).toString("hex");
-      admin.passwordHash = hashPassword(newPassword.trim(), salt);
-      admin.salt = salt;
-      delete admin.recoveryRequest;
-      const sessionToken = `admin_sess_${crypto.randomBytes(32).toString("hex")}`;
-      const now = Date.now();
-      admin.activeSessions = [
-        {
-          token: sessionToken,
-          createdAt: now,
-          expiresAt: now + 30 * 24 * 60 * 60 * 1e3
-        }
-      ];
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
-      return {
-        success: true,
-        message: "Senha redefinida com sucesso! Voc\xEA j\xE1 foi autenticado.",
-        token: sessionToken,
-        user: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role
-        }
-      };
-    } catch (err) {
-      return { success: false, message: `Erro ao redefinir senha: ${err.message}` };
-    }
-  },
-  // Change password while logged in
-  changePassword(token, currentPassword, newPassword) {
-    ensureDataDir();
-    if (!fs.existsSync(ADMIN_FILE)) {
+  async changePassword(token, currentPassword, newPassword) {
+    const admin = readAdminFile();
+    if (!admin) {
       return { success: false, message: "Administrador n\xE3o cadastrado." };
     }
     try {
-      const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-      const admin = JSON.parse(content);
       const sess = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > Date.now());
       if (!sess) {
         return { success: false, message: "Sess\xE3o inv\xE1lida ou expirada. Fa\xE7a login novamente." };
       }
-      const inputHash = hashPassword(currentPassword, admin.salt);
+      const inputHash = hashPassword(currentPassword?.trim() || "", admin.salt);
       if (inputHash !== admin.passwordHash) {
         return { success: false, message: "Senha atual incorreta." };
       }
-      if (newPassword.length < 6) {
+      const cleanNew = newPassword?.trim() || "";
+      if (cleanNew.length < 6) {
         return { success: false, message: "A nova senha deve ter no m\xEDnimo 6 caracteres." };
       }
       const newSalt = crypto.randomBytes(16).toString("hex");
-      admin.passwordHash = hashPassword(newPassword.trim(), newSalt);
+      admin.passwordHash = hashPassword(cleanNew, newSalt);
       admin.salt = newSalt;
-      fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2), "utf-8");
-      return { success: true, message: "Senha de administrador alterada com sucesso!" };
+      admin.activeSessions = [sess];
+      writeAdminFile(admin);
+      return {
+        success: true,
+        message: "Senha atualizada com sucesso! Todos os novos acessos em qualquer aparelho usar\xE3o esta nova senha."
+      };
     } catch (err) {
       return { success: false, message: `Falha ao alterar senha: ${err.message}` };
     }
@@ -1336,11 +1731,17 @@ app.post("/api/audit-site", async (req, res) => {
     if (!url) {
       return res.status(400).json({ success: false, error: "URL do site \xE9 obrigat\xF3ria." });
     }
-    const geminiReport = await auditSiteWithGemini({ url, niche, targetObjective });
+    const scrapedData = await scrapeSiteHtmlPreview(url);
+    const geminiReport = await auditSiteWithGemini({ url, niche, targetObjective }, scrapedData);
     if (geminiReport) {
-      return res.json({ success: true, report: geminiReport, source: "gemini" });
+      return res.json({ success: true, report: geminiReport, scrapedData, source: "gemini" });
     } else {
-      return res.json({ success: false, source: "heuristic", message: "Fallback to client heuristic engine" });
+      return res.json({
+        success: false,
+        scrapedData,
+        source: "heuristic",
+        message: "Fallback to client heuristic engine with live scraped data"
+      });
     }
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1394,84 +1795,65 @@ app.post("/api/sales/solve-objection", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
-app.get("/api/auth/status", (req, res) => {
-  const hasAdmin = serverAuthStore.hasAdmin();
-  const adminInfo = serverAuthStore.getAdminSafe();
-  return res.json({
-    hasAdmin,
-    adminEmail: adminInfo?.email || null,
-    adminName: adminInfo?.name || null,
-    createdAt: adminInfo?.createdAt || null
-  });
-});
-app.post("/api/auth/register-master", (req, res) => {
+app.get("/api/auth/status", async (req, res) => {
   try {
-    const result = serverAuthStore.registerMasterAdmin(req.body);
+    const status = await serverAuthStore.getAdminPublicStatus();
+    return res.json(status);
+  } catch (err) {
+    return res.status(500).json({ hasAdmin: false, error: err.message });
+  }
+});
+app.post("/api/auth/register-master", async (req, res) => {
+  try {
+    const result = await serverAuthStore.registerMasterAdmin(req.body);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const result = serverAuthStore.login(email, password);
+    const result = await serverAuthStore.login(email, password);
     return res.status(result.success ? 200 : 401).json(result);
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-app.post("/api/auth/verify-session", (req, res) => {
+app.post("/api/auth/verify-session", async (req, res) => {
   try {
     const { token } = req.body;
-    const result = serverAuthStore.validateSession(token);
+    const result = await serverAuthStore.validateSession(token);
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ valid: false, message: err.message });
   }
 });
-app.post("/api/auth/logout", (req, res) => {
+app.post("/api/auth/logout", async (req, res) => {
   try {
     const { token } = req.body;
     if (token) {
-      serverAuthStore.logout(token);
+      await serverAuthStore.logout(token);
     }
     return res.json({ success: true });
   } catch {
     return res.json({ success: true });
   }
 });
-app.post("/api/auth/recovery/request", (req, res) => {
-  try {
-    const { email } = req.body;
-    const result = serverAuthStore.requestPasswordRecovery(email);
-    return res.status(result.success ? 200 : 400).json(result);
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-app.post("/api/auth/recovery/reset", (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    const result = serverAuthStore.resetPasswordWithToken(token, newPassword);
-    return res.status(result.success ? 200 : 400).json(result);
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-app.post("/api/auth/change-password", (req, res) => {
+app.post("/api/auth/change-password", async (req, res) => {
   try {
     const { token, currentPassword, newPassword } = req.body;
-    const result = serverAuthStore.changePassword(token, currentPassword, newPassword);
+    const result = await serverAuthStore.changePassword(token, currentPassword, newPassword);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-app.post("/api/auth/reset-system-admin", (req, res) => {
+app.post("/api/auth/reset-system-admin", async (req, res) => {
   try {
-    const result = serverAuthStore.resetAdmin();
-    return res.json(result);
+    const { token, currentPassword } = req.body || {};
+    const result = await serverAuthStore.resetAdmin({ token, currentPassword });
+    return res.status(result.unauthorized ? 401 : 200).json(result);
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
