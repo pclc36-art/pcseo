@@ -287,11 +287,19 @@ export async function runPageSpeedAnalysis(rawUrl: string, strategy: 'mobile' | 
   const officialPageSpeedUrl = `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(url)}`;
   const analyzedAt = new Date().toISOString();
 
-  // Try Google PageSpeed Insights API if a key is configured
-  const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GEMINI_API_KEY;
+  // Try Google PageSpeed Insights API if a real key is configured
+  const rawKey = (process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GEMINI_API_KEY || '').trim();
+  const isPlaceholder =
+    !rawKey ||
+    rawKey === 'MY_GEMINI_API_KEY' ||
+    rawKey === 'YOUR_API_KEY' ||
+    rawKey.startsWith('MY_') ||
+    rawKey.includes('PLACEHOLDER');
+  const apiKey = isPlaceholder ? '' : rawKey;
+
   if (apiKey) {
     try {
-      const googleApiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=performance&category=accessibility&category=best-practices&category=seo&key=${apiKey}`;
+      const googleApiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=performance&category=accessibility&category=best-practices&category=seo&key=${encodeURIComponent(apiKey)}`;
       const response = await fetch(googleApiUrl, {
         headers: { 'Accept': 'application/json' },
       });

@@ -3,6 +3,12 @@ import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 
+export interface AdminSessionRecord {
+  token: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
 export interface ServerAdminUser {
   id: string;
   name: string;
@@ -10,55 +16,60 @@ export interface ServerAdminUser {
   role: 'super_admin';
   authEpoch: string;
   createdAt: string;
+  updatedAt?: string;
   lastLogin?: string;
   passwordHash: string;
   salt: string;
   recoveryEmail: string;
-  activeSessions: {
-    token: string;
-    createdAt: number;
-    expiresAt: number;
-  }[];
+  activeSessions?: AdminSessionRecord[];
 }
 
-// Epoch bumped specifically to reset any pre-existing login credentials once,
-// while preserving any newly registered credentials across future deploys and devices.
+interface ResetMarker {
+  resetAt: number;
+}
+
+// Epoch bumped specifically to reset pre-existing credentials once
 export const CURRENT_AUTH_EPOCH = 'reset_2026_exclusive_v1';
 
-const LEGACY_DATA_DIR = path.resolve(process.cwd(), '.data');
-const LEGACY_ADMIN_FILE = path.join(LEGACY_DATA_DIR, 'admin_account.json');
+// Single authorized exclusive owner email — prevents anyone else from ever registering
+export const AUTHORIZED_OWNER_EMAIL = 'pclc36@gmail.com';
 
-function resolvePersistentDataDir(): string {
-  const candidates = [
-    path.join(os.homedir(), '.master-site-prompt-studio'),
-    LEGACY_DATA_DIR,
-  ];
+const WORKSPACE_DATA_DIR = path.resolve(process.cwd(), '.data');
+const WORKSPACE_ADMIN_FILE = path.join(WORKSPACE_DATA_DIR, 'admin_account.json');
 
-  for (const dir of candidates) {
+const HOME_DATA_DIR = path.join(os.homedir(), '.master-site-prompt-studio');
+const HOME_ADMIN_FILE = path.join(HOME_DATA_DIR, 'admin_account.json');
+
+function resolveRuntimeDir(): string {
+  try {
+    if (!fs.existsSync(HOME_DATA_DIR)) {
+      fs.mkdirSync(HOME_DATA_DIR, { recursive: true });
+    }
+    fs.accessSync(HOME_DATA_DIR, fs.constants.W_OK);
+    return HOME_DATA_DIR;
+  } catch {
     try {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      if (!fs.existsSync(WORKSPACE_DATA_DIR)) {
+        fs.mkdirSync(WORKSPACE_DATA_DIR, { recursive: true });
       }
-      fs.accessSync(dir, fs.constants.W_OK);
-      return dir;
+      return WORKSPACE_DATA_DIR;
     } catch {
-      // try next candidate
+      return WORKSPACE_DATA_DIR;
     }
   }
-
-  return LEGACY_DATA_DIR;
 }
 
-const DATA_DIR = resolvePersistentDataDir();
-const ADMIN_FILE = path.join(DATA_DIR, 'admin_account.json');
+const RUNTIME_DIR = resolveRuntimeDir();
+const SESSIONS_FILE = path.join(RUNTIME_DIR, 'sessions.json');
+const RESET_MARKER_FILE = path.join(RUNTIME_DIR, 'reset_marker.json');
 
-function ensureDataDir(): void {
+function ensureDir(dir: string): void {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-  } catch (err) {
-    console.error('Failed to create auth data directory:', err);
+  } catch {
+    // ignore if read-only
   }
 }
 
@@ -83,55 +94,156 @@ function safeUnlink(filePath: string): void {
       fs.unlinkSync(filePath);
     }
   } catch {
-    // ignore cleanup failure
+    // ignore
   }
 }
 
-function writeAdminFile(admin: ServerAdminUser): void {
-  ensureDataDir();
-  const tempPath = `${ADMIN_FILE}.tmp.${process.pid}`;
-  fs.writeFileSync(tempPath, JSON.stringify(admin, null, 2), 'utf-8');
-  fs.renameSync(tempPath, ADMIN_FILE);
-}
-
-function readAdminFile(): ServerAdminUser | null {
-  ensureDataDir();
-
-  if (LEGACY_ADMIN_FILE !== ADMIN_FILE && fs.existsSync(LEGACY_ADMIN_FILE)) {
-    try {
-      const legacyRaw = fs.readFileSync(LEGACY_ADMIN_FILE, 'utf-8');
-      const legacyParsed: Partial<ServerAdminUser> = JSON.parse(legacyRaw);
-      if (legacyParsed.authEpoch !== CURRENT_AUTH_EPOCH) {
-        safeUnlink(LEGACY_ADMIN_FILE);
-      } else if (!fs.existsSync(ADMIN_FILE)) {
-        writeAdminFile(legacyParsed as ServerAdminUser);
-        safeUnlink(LEGACY_ADMIN_FILE);
-      }
-    } catch {
-      safeUnlink(LEGACY_ADMIN_FILE);
-    }
-  }
-
-  if (!fs.existsSync(ADMIN_FILE)) return null;
-
+function readJsonSafe<T>(filePath: string): T | null {
   try {
-    const content = fs.readFileSync(ADMIN_FILE, 'utf-8');
-    const data: Partial<ServerAdminUser> = JSON.parse(content);
-
-    if (!data || !data.email || !data.passwordHash || data.authEpoch !== CURRENT_AUTH_EPOCH) {
-      safeUnlink(ADMIN_FILE);
-      return null;
-    }
-
-    return data as ServerAdminUser;
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(raw) as T;
   } catch {
     return null;
   }
 }
 
+function writeJsonAtomic(filePath: string, data: unknown): void {
+  ensureDir(path.dirname(filePath));
+  const tempPath = `${filePath}.tmp.${process.pid}`;
+  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tempPath, filePath);
+}
+
+function getTimestamp(admin: Partial<ServerAdminUser>): number {
+  const ts = Date.parse(admin.updatedAt || admin.createdAt || '');
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function isValidCurrentEpochAdmin(data: Partial<ServerAdminUser> | null): data is ServerAdminUser {
+  return Boolean(
+    data &&
+      data.email &&
+      data.passwordHash &&
+      data.salt &&
+      data.authEpoch === CURRENT_AUTH_EPOCH &&
+      data.email.trim().toLowerCase() === AUTHORIZED_OWNER_EMAIL
+  );
+}
+
+function stripSessions(admin: ServerAdminUser): Omit<ServerAdminUser, 'activeSessions'> {
+  const { activeSessions: _ignored, ...rest } = admin;
+  return rest;
+}
+
+function readSessions(fallbackAdmin?: ServerAdminUser | null): AdminSessionRecord[] {
+  const now = Date.now();
+  const stored = readJsonSafe<AdminSessionRecord[]>(SESSIONS_FILE);
+  if (Array.isArray(stored)) {
+    return stored.filter((s) => s && s.token && s.expiresAt > now);
+  }
+  if (fallbackAdmin && Array.isArray(fallbackAdmin.activeSessions)) {
+    const migrated = fallbackAdmin.activeSessions.filter((s) => s && s.token && s.expiresAt > now);
+    if (migrated.length > 0) {
+      try {
+        writeJsonAtomic(SESSIONS_FILE, migrated);
+      } catch {
+        // ignore
+      }
+    }
+    return migrated;
+  }
+  return [];
+}
+
+function writeSessions(sessions: AdminSessionRecord[]): void {
+  const now = Date.now();
+  const clean = sessions.filter((s) => s && s.token && s.expiresAt > now).slice(-25);
+  writeJsonAtomic(SESSIONS_FILE, clean);
+}
+
+function readAdminRecord(): ServerAdminUser | null {
+  const resetMarker = readJsonSafe<ResetMarker>(RESET_MARKER_FILE);
+  const resetAt = resetMarker?.resetAt || 0;
+
+  const homeRaw = readJsonSafe<Partial<ServerAdminUser>>(HOME_ADMIN_FILE);
+  const workspaceRaw = readJsonSafe<Partial<ServerAdminUser>>(WORKSPACE_ADMIN_FILE);
+
+  const homeValid = isValidCurrentEpochAdmin(homeRaw) && getTimestamp(homeRaw) >= resetAt ? homeRaw : null;
+  const workspaceValid =
+    isValidCurrentEpochAdmin(workspaceRaw) && getTimestamp(workspaceRaw) >= resetAt ? workspaceRaw : null;
+
+  // Clean up any stale pre-reset files
+  if (homeRaw && !isValidCurrentEpochAdmin(homeRaw)) {
+    safeUnlink(HOME_ADMIN_FILE);
+  }
+  if (workspaceRaw && !isValidCurrentEpochAdmin(workspaceRaw)) {
+    safeUnlink(WORKSPACE_ADMIN_FILE);
+  }
+
+  let chosen: ServerAdminUser | null = null;
+  if (homeValid && workspaceValid) {
+    chosen = getTimestamp(homeValid) >= getTimestamp(workspaceValid) ? homeValid : workspaceValid;
+  } else {
+    chosen = homeValid || workspaceValid;
+  }
+
+  if (!chosen) return null;
+
+  // Keep both locations synchronized without exposing session tokens in workspace file
+  const sanitized = stripSessions(chosen);
+  try {
+    if (!homeValid || getTimestamp(chosen) > getTimestamp(homeValid)) {
+      writeJsonAtomic(HOME_ADMIN_FILE, sanitized);
+    }
+  } catch {
+    // ignore if home dir read-only
+  }
+  try {
+    if (!workspaceValid || getTimestamp(chosen) > getTimestamp(workspaceValid)) {
+      writeJsonAtomic(WORKSPACE_ADMIN_FILE, sanitized);
+    }
+  } catch {
+    // ignore if workspace dir read-only
+  }
+
+  // Ensure legacy inline sessions are migrated to sessions.json
+  if (Array.isArray(chosen.activeSessions) && chosen.activeSessions.length > 0) {
+    readSessions(chosen);
+  }
+
+  return chosen;
+}
+
+function writeAdminRecord(admin: ServerAdminUser): void {
+  const sanitized = stripSessions({
+    ...admin,
+    updatedAt: admin.updatedAt || new Date().toISOString(),
+  });
+  safeUnlink(RESET_MARKER_FILE);
+
+  let wroteAnywhere = false;
+  try {
+    writeJsonAtomic(HOME_ADMIN_FILE, sanitized);
+    wroteAnywhere = true;
+  } catch {
+    // fallback to workspace
+  }
+  try {
+    writeJsonAtomic(WORKSPACE_ADMIN_FILE, sanitized);
+    wroteAnywhere = true;
+  } catch {
+    // ignore if read-only
+  }
+
+  if (!wroteAnywhere) {
+    throw new Error('Não foi possível gravar o arquivo de credenciais no servidor.');
+  }
+}
+
 export const serverAuthStore = {
   async hasAdmin(): Promise<boolean> {
-    return Boolean(readAdminFile());
+    return Boolean(readAdminRecord());
   },
 
   async getAdminPublicStatus(): Promise<{
@@ -140,8 +252,9 @@ export const serverAuthStore = {
     adminName: string | null;
     createdAt: string | null;
     authEpoch: string;
+    exclusiveOwnerOnly: boolean;
   }> {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return {
         hasAdmin: false,
@@ -149,6 +262,7 @@ export const serverAuthStore = {
         adminName: null,
         createdAt: null,
         authEpoch: CURRENT_AUTH_EPOCH,
+        exclusiveOwnerOnly: true,
       };
     }
 
@@ -158,6 +272,7 @@ export const serverAuthStore = {
       adminName: admin.name,
       createdAt: admin.createdAt,
       authEpoch: CURRENT_AUTH_EPOCH,
+      exclusiveOwnerOnly: true,
     };
   },
 
@@ -166,23 +281,22 @@ export const serverAuthStore = {
     message: string;
     unauthorized?: boolean;
   }> {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
-      safeUnlink(ADMIN_FILE);
-      safeUnlink(LEGACY_ADMIN_FILE);
+      safeUnlink(HOME_ADMIN_FILE);
+      safeUnlink(WORKSPACE_ADMIN_FILE);
+      safeUnlink(SESSIONS_FILE);
       return {
         success: true,
-        message: 'Sistema pronto para novo cadastro exclusivo.',
+        message: 'Sistema pronto para o cadastro exclusivo do proprietário.',
       };
     }
 
     const token = params?.token?.trim();
     const currentPassword = params?.currentPassword?.trim();
 
-    const now = Date.now();
-    const hasValidToken = Boolean(
-      token && (admin.activeSessions || []).some((s) => s.token === token && s.expiresAt > now)
-    );
+    const sessions = readSessions(admin);
+    const hasValidToken = Boolean(token && sessions.some((s) => s.token === token));
     const hasValidPassword = Boolean(
       currentPassword && hashPassword(currentPassword, admin.salt) === admin.passwordHash
     );
@@ -196,8 +310,10 @@ export const serverAuthStore = {
     }
 
     try {
-      safeUnlink(ADMIN_FILE);
-      safeUnlink(LEGACY_ADMIN_FILE);
+      safeUnlink(HOME_ADMIN_FILE);
+      safeUnlink(WORKSPACE_ADMIN_FILE);
+      safeUnlink(SESSIONS_FILE);
+      writeJsonAtomic(RESET_MARKER_FILE, { resetAt: Date.now() });
       return {
         success: true,
         message: 'Cadastro de administrador resetado com sucesso. Você pode cadastrar sua nova senha exclusiva agora.',
@@ -216,7 +332,7 @@ export const serverAuthStore = {
     if (await this.hasAdmin()) {
       return {
         success: false,
-        message: 'O Administrador exclusivo do sistema já está cadastrado. Novos cadastros estão bloqueados por segurança.',
+        message: 'O Administrador exclusivo já está cadastrado. Novos cadastros estão bloqueados em todos os aparelhos.',
       };
     }
 
@@ -228,6 +344,13 @@ export const serverAuthStore = {
       return { success: false, message: 'Todos os campos são obrigatórios.' };
     }
 
+    if (cleanEmail !== AUTHORIZED_OWNER_EMAIL) {
+      return {
+        success: false,
+        message: 'Acesso negado: este aplicativo é de uso exclusivo do proprietário autorizado.',
+      };
+    }
+
     if (cleanPass.length < 6) {
       return { success: false, message: 'A senha deve conter no mínimo 6 caracteres.' };
     }
@@ -236,30 +359,26 @@ export const serverAuthStore = {
     const passwordHash = hashPassword(cleanPass, salt);
     const sessionToken = `admin_sess_${crypto.randomBytes(32).toString('hex')}`;
     const now = Date.now();
+    const nowIso = new Date(now).toISOString();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
     const admin: ServerAdminUser = {
-      id: `admin_master_${Date.now()}`,
+      id: `admin_master_${now}`,
       name: cleanName,
       email: cleanEmail,
       role: 'super_admin',
       authEpoch: CURRENT_AUTH_EPOCH,
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      lastLogin: nowIso,
       passwordHash,
       salt,
       recoveryEmail: cleanEmail,
-      activeSessions: [
-        {
-          token: sessionToken,
-          createdAt: now,
-          expiresAt,
-        },
-      ],
     };
 
     try {
-      writeAdminFile(admin);
+      writeAdminRecord(admin);
+      writeSessions([{ token: sessionToken, createdAt: now, expiresAt }]);
       return {
         success: true,
         user: {
@@ -281,7 +400,7 @@ export const serverAuthStore = {
     user?: { id: string; name: string; email: string; role: string };
     token?: string;
   }> {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return { success: false, message: 'Nenhum administrador cadastrado no sistema.' };
     }
@@ -301,16 +420,8 @@ export const serverAuthStore = {
       const now = Date.now();
       const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
-      admin.lastLogin = new Date().toISOString();
-      if (!Array.isArray(admin.activeSessions)) {
-        admin.activeSessions = [];
-      }
-      admin.activeSessions = [
-        ...admin.activeSessions.filter((s) => s.expiresAt > now),
-        { token: sessionToken, createdAt: now, expiresAt },
-      ].slice(-25);
-
-      writeAdminFile(admin);
+      const sessions = readSessions(admin);
+      writeSessions([...sessions, { token: sessionToken, createdAt: now, expiresAt }]);
 
       return {
         success: true,
@@ -332,11 +443,11 @@ export const serverAuthStore = {
     user?: { id: string; name: string; email: string; role: string; createdAt: string };
   }> {
     if (!token) return { valid: false };
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) return { valid: false };
 
-    const now = Date.now();
-    const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
+    const sessions = readSessions(admin);
+    const active = sessions.find((s) => s.token === token);
     if (!active) return { valid: false };
 
     return {
@@ -352,11 +463,11 @@ export const serverAuthStore = {
   },
 
   async logout(token: string): Promise<void> {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) return;
     try {
-      admin.activeSessions = (admin.activeSessions || []).filter((s) => s.token !== token);
-      writeAdminFile(admin);
+      const sessions = readSessions(admin).filter((s) => s.token !== token);
+      writeSessions(sessions);
     } catch {
       // ignore
     }
@@ -366,13 +477,14 @@ export const serverAuthStore = {
     success: boolean;
     message: string;
   }> {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return { success: false, message: 'Administrador não cadastrado.' };
     }
 
     try {
-      const sess = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > Date.now());
+      const sessions = readSessions(admin);
+      const sess = sessions.find((s) => s.token === token);
       if (!sess) {
         return { success: false, message: 'Sessão inválida ou expirada. Faça login novamente.' };
       }
@@ -390,9 +502,10 @@ export const serverAuthStore = {
       const newSalt = crypto.randomBytes(16).toString('hex');
       admin.passwordHash = hashPassword(cleanNew, newSalt);
       admin.salt = newSalt;
-      admin.activeSessions = [sess];
+      admin.updatedAt = new Date().toISOString();
 
-      writeAdminFile(admin);
+      writeAdminRecord(admin);
+      writeSessions([sess]);
       return {
         success: true,
         message: 'Senha atualizada com sucesso! Todos os novos acessos em qualquer aparelho usarão esta nova senha.',

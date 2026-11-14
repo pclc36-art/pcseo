@@ -7,8 +7,20 @@ import dotenv from "dotenv";
 
 // src/server/api.ts
 import { GoogleGenAI } from "@google/genai";
+var lastRejectedApiKey = null;
+function resolveValidGeminiApiKey() {
+  const raw = process.env.GEMINI_API_KEY?.trim();
+  if (!raw) return null;
+  if (raw === "MY_GEMINI_API_KEY" || raw === "YOUR_API_KEY" || raw.startsWith("MY_") || raw.includes("PLACEHOLDER")) {
+    return null;
+  }
+  if (lastRejectedApiKey && raw === lastRejectedApiKey) {
+    return null;
+  }
+  return raw;
+}
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = resolveValidGeminiApiKey();
   if (!apiKey) return null;
   return new GoogleGenAI({
     apiKey,
@@ -19,13 +31,52 @@ function getGeminiClient() {
     }
   });
 }
+function isInvalidApiKeyError(err) {
+  const msg = String(err?.message || err || "");
+  return msg.includes("API key not valid") || msg.includes("API_KEY_INVALID") || msg.includes('"code":401') || err?.status === 401;
+}
+async function generateJsonWithGemini(prompt, contextLabel) {
+  const apiKey = resolveValidGeminiApiKey();
+  if (!apiKey) return null;
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build"
+      }
+    }
+  });
+  const modelsToTry = ["gemini-4-hydrogen"];
+  for (const modelName of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+      const text = response.text;
+      if (text) {
+        return JSON.parse(text);
+      }
+    } catch (err) {
+      if (isInvalidApiKeyError(err)) {
+        lastRejectedApiKey = apiKey;
+        return null;
+      }
+      console.warn(`[${contextLabel}] Modelo ${modelName} indispon\xEDvel: ${err?.message?.slice(0, 80)}`);
+    }
+  }
+  return null;
+}
 function checkServerHealth() {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasKey = Boolean(resolveValidGeminiApiKey());
   return {
     status: "ok",
     hasKey,
-    activeModel: "gemini-3.8-flash",
-    engine: hasKey ? "Gemini 3.8 Flash + Heur\xEDstico Resiliente" : "Motor Heur\xEDstico Determin\xEDstico (Offline Ready)"
+    activeModel: "gemini-4-hydrogen",
+    engine: hasKey ? "Gemini 4 Hydrogen + Heur\xEDstico Resiliente" : "Motor Heur\xEDstico Determin\xEDstico (Offline Ready)"
   };
 }
 async function analyzeWithGemini(questionnaire, projectName, clientName, projectType, additionalNotes) {
@@ -75,25 +126,7 @@ ${questionnaire}
 OBSERVA\xC7\xD5ES ADICIONAIS:
 ${additionalNotes || "Nenhuma"}
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`Tentativa com modelo ${modelName} falhou: ${err.message?.slice(0, 80)}. Tentando pr\xF3ximo...`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "Briefing AI");
 }
 async function analyzeGbpQuestionnaireWithGemini(rawText) {
   const ai = getGeminiClient();
@@ -136,25 +169,7 @@ Campos requeridos no JSON:
 TEXTO RECEBIDO:
 ${rawText}
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`[GBP AI] Tentativa com modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "GBP AI");
 }
 async function generateGbpDossierWithGemini(data) {
   const ai = getGeminiClient();
@@ -217,25 +232,7 @@ Retorne OBRIGATORIAMENTE um JSON estruturado com os seguintes campos:
 - complianceChecks: Array de checks { item, status, details, howToFix }
 - maintenancePlan90Days: { month1, month2, month3 }
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`[GBP Dossier AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "GBP Dossier AI");
 }
 async function auditGbpProfileWithGemini(request) {
   const ai = getGeminiClient();
@@ -273,25 +270,7 @@ SE O USU\xC1RIO FORNECEU APENAS O LINK (URL do Google Maps ou nome no link):
 DADOS / LINK FORNECIDO:
 ${JSON.stringify(request, null, 2)}
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`[GBP Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "GBP Audit AI");
 }
 function decodeHtmlEntities(input) {
   return input.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&nbsp;/gi, " ").replace(/&#(\d+);/g, (_, num) => {
@@ -773,62 +752,47 @@ Todo site e landing page DEVE atingir nota >= 9.5 (95+) no Google PageSpeed Insi
 11. "recommendedImprovements": array de 6 objetos { id, title, category, impact, masterPromptReference, currentIssue, improvedProposal, copyableContent } onde CADA melhoria usa os dados reais do cliente (nome, cidade, WhatsApp, servi\xE7os reais) e referencia a preserva\xE7\xE3o das fotos reais extra\xEDdas.
 12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIA\xC7\xC3O & REENGENHARIA 10.0 autossuficiente e completo, contendo se\xE7\xE3o expl\xEDcita com TODAS as URLs exatas das imagens do cliente e TODOS os dados reais do cliente para preserva\xE7\xE3o obrigat\xF3ria, mais meta 9.5+ PageSpeed.
 `;
-  const modelsToTry = ["gemini-4-hydrogen", "gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        const parsed = JSON.parse(text);
-        if (liveScrape) {
-          if (liveScrape.images.length > 0) {
-            const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
-            const geminiImgs = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
-            const sanitizedGemini = geminiImgs.filter(
-              (g) => typeof g?.url === "string" && scrapedByUrl.has(g.url)
-            );
-            const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
-            const mergedImages = [
-              ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
-              ...liveScrape.images.filter((s) => !seenUrls.has(s.url))
-            ];
-            parsed.extractedImages = mergedImages;
-          }
-          parsed.ownerInfo = {
-            ...parsed.ownerInfo || {},
-            businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || "",
-            ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
-            roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || "Confirmar com cliente",
-            whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
-            phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
-            email: liveScrape.emails[0] || parsed.ownerInfo?.email || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
-            fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
-            cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || "Confirmar cidade/UF",
-            cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || void 0,
-            instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || void 0,
-            facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || void 0,
-            linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || void 0,
-            youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || void 0
-          };
-          parsed.liveScrapedUsed = true;
-          parsed.preservedClientAssetCount = liveScrape.images.length;
-          parsed.siteTitle = liveScrape.title || void 0;
-          parsed.metaDescription = liveScrape.description || void 0;
-          parsed.h1Text = liveScrape.h1 || void 0;
-          parsed.extractedHeadings = liveScrape.headings;
-          parsed.extractedServices = liveScrape.servicesDetected;
-        }
-        return parsed;
+  const parsed = await generateJsonWithGemini(prompt, "Site Audit AI");
+  if (parsed) {
+    if (liveScrape) {
+      if (liveScrape.images.length > 0) {
+        const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
+        const geminiImgs = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
+        const sanitizedGemini = geminiImgs.filter(
+          (g) => typeof g?.url === "string" && scrapedByUrl.has(g.url)
+        );
+        const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
+        const mergedImages = [
+          ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
+          ...liveScrape.images.filter((s) => !seenUrls.has(s.url))
+        ];
+        parsed.extractedImages = mergedImages;
       }
-    } catch (err) {
-      console.warn(`[Site Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
+      parsed.ownerInfo = {
+        ...parsed.ownerInfo || {},
+        businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || "",
+        ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+        roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || "Confirmar com cliente",
+        whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+        phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+        email: liveScrape.emails[0] || parsed.ownerInfo?.email || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+        fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || "N\xE3o identificado no HTML \u2014 confirmar com cliente",
+        cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || "Confirmar cidade/UF",
+        cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || void 0,
+        instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || void 0,
+        facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || void 0,
+        linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || void 0,
+        youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || void 0
+      };
+      parsed.liveScrapedUsed = true;
+      parsed.preservedClientAssetCount = liveScrape.images.length;
+      parsed.siteTitle = liveScrape.title || void 0;
+      parsed.metaDescription = liveScrape.description || void 0;
+      parsed.h1Text = liveScrape.h1 || void 0;
+      parsed.extractedHeadings = liveScrape.headings;
+      parsed.extractedServices = liveScrape.servicesDetected;
     }
+    return parsed;
   }
   return null;
 }
@@ -949,25 +913,7 @@ Gere um JSON com o esquema exato:
   }
 }
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`[Sales Pitch AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "Sales Pitch AI");
 }
 async function solveObjectionWithGemini(request) {
   const ai = getGeminiClient();
@@ -1004,25 +950,7 @@ Retorne um JSON com o esquema:
   "followUpPlan": "O que fazer caso ele n\xE3o responda nas pr\xF3ximas 24 horas"
 }
 `;
-  const modelsToTry = ["gemini-3.8-flash"];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err) {
-      console.warn(`[Objection Solver AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-  return null;
+  return generateJsonWithGemini(prompt, "Objection Solver AI");
 }
 
 // src/server/authStore.ts
@@ -1031,34 +959,38 @@ import os from "os";
 import path from "path";
 import crypto from "crypto";
 var CURRENT_AUTH_EPOCH = "reset_2026_exclusive_v1";
-var LEGACY_DATA_DIR = path.resolve(process.cwd(), ".data");
-var LEGACY_ADMIN_FILE = path.join(LEGACY_DATA_DIR, "admin_account.json");
-function resolvePersistentDataDir() {
-  const candidates = [
-    path.join(os.homedir(), ".master-site-prompt-studio"),
-    LEGACY_DATA_DIR
-  ];
-  for (const dir of candidates) {
+var AUTHORIZED_OWNER_EMAIL = "pclc36@gmail.com";
+var WORKSPACE_DATA_DIR = path.resolve(process.cwd(), ".data");
+var WORKSPACE_ADMIN_FILE = path.join(WORKSPACE_DATA_DIR, "admin_account.json");
+var HOME_DATA_DIR = path.join(os.homedir(), ".master-site-prompt-studio");
+var HOME_ADMIN_FILE = path.join(HOME_DATA_DIR, "admin_account.json");
+function resolveRuntimeDir() {
+  try {
+    if (!fs.existsSync(HOME_DATA_DIR)) {
+      fs.mkdirSync(HOME_DATA_DIR, { recursive: true });
+    }
+    fs.accessSync(HOME_DATA_DIR, fs.constants.W_OK);
+    return HOME_DATA_DIR;
+  } catch {
     try {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      if (!fs.existsSync(WORKSPACE_DATA_DIR)) {
+        fs.mkdirSync(WORKSPACE_DATA_DIR, { recursive: true });
       }
-      fs.accessSync(dir, fs.constants.W_OK);
-      return dir;
+      return WORKSPACE_DATA_DIR;
     } catch {
+      return WORKSPACE_DATA_DIR;
     }
   }
-  return LEGACY_DATA_DIR;
 }
-var DATA_DIR = resolvePersistentDataDir();
-var ADMIN_FILE = path.join(DATA_DIR, "admin_account.json");
-function ensureDataDir() {
+var RUNTIME_DIR = resolveRuntimeDir();
+var SESSIONS_FILE = path.join(RUNTIME_DIR, "sessions.json");
+var RESET_MARKER_FILE = path.join(RUNTIME_DIR, "reset_marker.json");
+function ensureDir(dir) {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-  } catch (err) {
-    console.error("Failed to create auth data directory:", err);
+  } catch {
   }
 }
 function hashPassword(password, salt) {
@@ -1079,54 +1011,130 @@ function safeUnlink(filePath) {
   } catch {
   }
 }
-function writeAdminFile(admin) {
-  ensureDataDir();
-  const tempPath = `${ADMIN_FILE}.tmp.${process.pid}`;
-  fs.writeFileSync(tempPath, JSON.stringify(admin, null, 2), "utf-8");
-  fs.renameSync(tempPath, ADMIN_FILE);
-}
-function readAdminFile() {
-  ensureDataDir();
-  if (LEGACY_ADMIN_FILE !== ADMIN_FILE && fs.existsSync(LEGACY_ADMIN_FILE)) {
-    try {
-      const legacyRaw = fs.readFileSync(LEGACY_ADMIN_FILE, "utf-8");
-      const legacyParsed = JSON.parse(legacyRaw);
-      if (legacyParsed.authEpoch !== CURRENT_AUTH_EPOCH) {
-        safeUnlink(LEGACY_ADMIN_FILE);
-      } else if (!fs.existsSync(ADMIN_FILE)) {
-        writeAdminFile(legacyParsed);
-        safeUnlink(LEGACY_ADMIN_FILE);
-      }
-    } catch {
-      safeUnlink(LEGACY_ADMIN_FILE);
-    }
-  }
-  if (!fs.existsSync(ADMIN_FILE)) return null;
+function readJsonSafe(filePath) {
   try {
-    const content = fs.readFileSync(ADMIN_FILE, "utf-8");
-    const data = JSON.parse(content);
-    if (!data || !data.email || !data.passwordHash || data.authEpoch !== CURRENT_AUTH_EPOCH) {
-      safeUnlink(ADMIN_FILE);
-      return null;
-    }
-    return data;
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
+function writeJsonAtomic(filePath, data) {
+  ensureDir(path.dirname(filePath));
+  const tempPath = `${filePath}.tmp.${process.pid}`;
+  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
+  fs.renameSync(tempPath, filePath);
+}
+function getTimestamp(admin) {
+  const ts = Date.parse(admin.updatedAt || admin.createdAt || "");
+  return Number.isFinite(ts) ? ts : 0;
+}
+function isValidCurrentEpochAdmin(data) {
+  return Boolean(
+    data && data.email && data.passwordHash && data.salt && data.authEpoch === CURRENT_AUTH_EPOCH && data.email.trim().toLowerCase() === AUTHORIZED_OWNER_EMAIL
+  );
+}
+function stripSessions(admin) {
+  const { activeSessions: _ignored, ...rest } = admin;
+  return rest;
+}
+function readSessions(fallbackAdmin) {
+  const now = Date.now();
+  const stored = readJsonSafe(SESSIONS_FILE);
+  if (Array.isArray(stored)) {
+    return stored.filter((s) => s && s.token && s.expiresAt > now);
+  }
+  if (fallbackAdmin && Array.isArray(fallbackAdmin.activeSessions)) {
+    const migrated = fallbackAdmin.activeSessions.filter((s) => s && s.token && s.expiresAt > now);
+    if (migrated.length > 0) {
+      try {
+        writeJsonAtomic(SESSIONS_FILE, migrated);
+      } catch {
+      }
+    }
+    return migrated;
+  }
+  return [];
+}
+function writeSessions(sessions) {
+  const now = Date.now();
+  const clean = sessions.filter((s) => s && s.token && s.expiresAt > now).slice(-25);
+  writeJsonAtomic(SESSIONS_FILE, clean);
+}
+function readAdminRecord() {
+  const resetMarker = readJsonSafe(RESET_MARKER_FILE);
+  const resetAt = resetMarker?.resetAt || 0;
+  const homeRaw = readJsonSafe(HOME_ADMIN_FILE);
+  const workspaceRaw = readJsonSafe(WORKSPACE_ADMIN_FILE);
+  const homeValid = isValidCurrentEpochAdmin(homeRaw) && getTimestamp(homeRaw) >= resetAt ? homeRaw : null;
+  const workspaceValid = isValidCurrentEpochAdmin(workspaceRaw) && getTimestamp(workspaceRaw) >= resetAt ? workspaceRaw : null;
+  if (homeRaw && !isValidCurrentEpochAdmin(homeRaw)) {
+    safeUnlink(HOME_ADMIN_FILE);
+  }
+  if (workspaceRaw && !isValidCurrentEpochAdmin(workspaceRaw)) {
+    safeUnlink(WORKSPACE_ADMIN_FILE);
+  }
+  let chosen = null;
+  if (homeValid && workspaceValid) {
+    chosen = getTimestamp(homeValid) >= getTimestamp(workspaceValid) ? homeValid : workspaceValid;
+  } else {
+    chosen = homeValid || workspaceValid;
+  }
+  if (!chosen) return null;
+  const sanitized = stripSessions(chosen);
+  try {
+    if (!homeValid || getTimestamp(chosen) > getTimestamp(homeValid)) {
+      writeJsonAtomic(HOME_ADMIN_FILE, sanitized);
+    }
+  } catch {
+  }
+  try {
+    if (!workspaceValid || getTimestamp(chosen) > getTimestamp(workspaceValid)) {
+      writeJsonAtomic(WORKSPACE_ADMIN_FILE, sanitized);
+    }
+  } catch {
+  }
+  if (Array.isArray(chosen.activeSessions) && chosen.activeSessions.length > 0) {
+    readSessions(chosen);
+  }
+  return chosen;
+}
+function writeAdminRecord(admin) {
+  const sanitized = stripSessions({
+    ...admin,
+    updatedAt: admin.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+  });
+  safeUnlink(RESET_MARKER_FILE);
+  let wroteAnywhere = false;
+  try {
+    writeJsonAtomic(HOME_ADMIN_FILE, sanitized);
+    wroteAnywhere = true;
+  } catch {
+  }
+  try {
+    writeJsonAtomic(WORKSPACE_ADMIN_FILE, sanitized);
+    wroteAnywhere = true;
+  } catch {
+  }
+  if (!wroteAnywhere) {
+    throw new Error("N\xE3o foi poss\xEDvel gravar o arquivo de credenciais no servidor.");
+  }
+}
 var serverAuthStore = {
   async hasAdmin() {
-    return Boolean(readAdminFile());
+    return Boolean(readAdminRecord());
   },
   async getAdminPublicStatus() {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return {
         hasAdmin: false,
         maskedEmail: null,
         adminName: null,
         createdAt: null,
-        authEpoch: CURRENT_AUTH_EPOCH
+        authEpoch: CURRENT_AUTH_EPOCH,
+        exclusiveOwnerOnly: true
       };
     }
     return {
@@ -1134,25 +1142,25 @@ var serverAuthStore = {
       maskedEmail: maskEmail(admin.email),
       adminName: admin.name,
       createdAt: admin.createdAt,
-      authEpoch: CURRENT_AUTH_EPOCH
+      authEpoch: CURRENT_AUTH_EPOCH,
+      exclusiveOwnerOnly: true
     };
   },
   async resetAdmin(params) {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
-      safeUnlink(ADMIN_FILE);
-      safeUnlink(LEGACY_ADMIN_FILE);
+      safeUnlink(HOME_ADMIN_FILE);
+      safeUnlink(WORKSPACE_ADMIN_FILE);
+      safeUnlink(SESSIONS_FILE);
       return {
         success: true,
-        message: "Sistema pronto para novo cadastro exclusivo."
+        message: "Sistema pronto para o cadastro exclusivo do propriet\xE1rio."
       };
     }
     const token = params?.token?.trim();
     const currentPassword = params?.currentPassword?.trim();
-    const now = Date.now();
-    const hasValidToken = Boolean(
-      token && (admin.activeSessions || []).some((s) => s.token === token && s.expiresAt > now)
-    );
+    const sessions = readSessions(admin);
+    const hasValidToken = Boolean(token && sessions.some((s) => s.token === token));
     const hasValidPassword = Boolean(
       currentPassword && hashPassword(currentPassword, admin.salt) === admin.passwordHash
     );
@@ -1164,8 +1172,10 @@ var serverAuthStore = {
       };
     }
     try {
-      safeUnlink(ADMIN_FILE);
-      safeUnlink(LEGACY_ADMIN_FILE);
+      safeUnlink(HOME_ADMIN_FILE);
+      safeUnlink(WORKSPACE_ADMIN_FILE);
+      safeUnlink(SESSIONS_FILE);
+      writeJsonAtomic(RESET_MARKER_FILE, { resetAt: Date.now() });
       return {
         success: true,
         message: "Cadastro de administrador resetado com sucesso. Voc\xEA pode cadastrar sua nova senha exclusiva agora."
@@ -1178,7 +1188,7 @@ var serverAuthStore = {
     if (await this.hasAdmin()) {
       return {
         success: false,
-        message: "O Administrador exclusivo do sistema j\xE1 est\xE1 cadastrado. Novos cadastros est\xE3o bloqueados por seguran\xE7a."
+        message: "O Administrador exclusivo j\xE1 est\xE1 cadastrado. Novos cadastros est\xE3o bloqueados em todos os aparelhos."
       };
     }
     const cleanName = data.name?.trim();
@@ -1187,6 +1197,12 @@ var serverAuthStore = {
     if (!cleanName || !cleanEmail || !cleanPass) {
       return { success: false, message: "Todos os campos s\xE3o obrigat\xF3rios." };
     }
+    if (cleanEmail !== AUTHORIZED_OWNER_EMAIL) {
+      return {
+        success: false,
+        message: "Acesso negado: este aplicativo \xE9 de uso exclusivo do propriet\xE1rio autorizado."
+      };
+    }
     if (cleanPass.length < 6) {
       return { success: false, message: "A senha deve conter no m\xEDnimo 6 caracteres." };
     }
@@ -1194,28 +1210,24 @@ var serverAuthStore = {
     const passwordHash = hashPassword(cleanPass, salt);
     const sessionToken = `admin_sess_${crypto.randomBytes(32).toString("hex")}`;
     const now = Date.now();
+    const nowIso = new Date(now).toISOString();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1e3;
     const admin = {
-      id: `admin_master_${Date.now()}`,
+      id: `admin_master_${now}`,
       name: cleanName,
       email: cleanEmail,
       role: "super_admin",
       authEpoch: CURRENT_AUTH_EPOCH,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-      lastLogin: (/* @__PURE__ */ new Date()).toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      lastLogin: nowIso,
       passwordHash,
       salt,
-      recoveryEmail: cleanEmail,
-      activeSessions: [
-        {
-          token: sessionToken,
-          createdAt: now,
-          expiresAt
-        }
-      ]
+      recoveryEmail: cleanEmail
     };
     try {
-      writeAdminFile(admin);
+      writeAdminRecord(admin);
+      writeSessions([{ token: sessionToken, createdAt: now, expiresAt }]);
       return {
         success: true,
         user: {
@@ -1231,7 +1243,7 @@ var serverAuthStore = {
     }
   },
   async login(email, password) {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return { success: false, message: "Nenhum administrador cadastrado no sistema." };
     }
@@ -1247,15 +1259,8 @@ var serverAuthStore = {
       const sessionToken = `admin_sess_${crypto.randomBytes(32).toString("hex")}`;
       const now = Date.now();
       const expiresAt = now + 30 * 24 * 60 * 60 * 1e3;
-      admin.lastLogin = (/* @__PURE__ */ new Date()).toISOString();
-      if (!Array.isArray(admin.activeSessions)) {
-        admin.activeSessions = [];
-      }
-      admin.activeSessions = [
-        ...admin.activeSessions.filter((s) => s.expiresAt > now),
-        { token: sessionToken, createdAt: now, expiresAt }
-      ].slice(-25);
-      writeAdminFile(admin);
+      const sessions = readSessions(admin);
+      writeSessions([...sessions, { token: sessionToken, createdAt: now, expiresAt }]);
       return {
         success: true,
         user: {
@@ -1272,10 +1277,10 @@ var serverAuthStore = {
   },
   async validateSession(token) {
     if (!token) return { valid: false };
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) return { valid: false };
-    const now = Date.now();
-    const active = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > now);
+    const sessions = readSessions(admin);
+    const active = sessions.find((s) => s.token === token);
     if (!active) return { valid: false };
     return {
       valid: true,
@@ -1289,21 +1294,22 @@ var serverAuthStore = {
     };
   },
   async logout(token) {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) return;
     try {
-      admin.activeSessions = (admin.activeSessions || []).filter((s) => s.token !== token);
-      writeAdminFile(admin);
+      const sessions = readSessions(admin).filter((s) => s.token !== token);
+      writeSessions(sessions);
     } catch {
     }
   },
   async changePassword(token, currentPassword, newPassword) {
-    const admin = readAdminFile();
+    const admin = readAdminRecord();
     if (!admin) {
       return { success: false, message: "Administrador n\xE3o cadastrado." };
     }
     try {
-      const sess = (admin.activeSessions || []).find((s) => s.token === token && s.expiresAt > Date.now());
+      const sessions = readSessions(admin);
+      const sess = sessions.find((s) => s.token === token);
       if (!sess) {
         return { success: false, message: "Sess\xE3o inv\xE1lida ou expirada. Fa\xE7a login novamente." };
       }
@@ -1318,8 +1324,9 @@ var serverAuthStore = {
       const newSalt = crypto.randomBytes(16).toString("hex");
       admin.passwordHash = hashPassword(cleanNew, newSalt);
       admin.salt = newSalt;
-      admin.activeSessions = [sess];
-      writeAdminFile(admin);
+      admin.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      writeAdminRecord(admin);
+      writeSessions([sess]);
       return {
         success: true,
         message: "Senha atualizada com sucesso! Todos os novos acessos em qualquer aparelho usar\xE3o esta nova senha."
@@ -1523,10 +1530,12 @@ async function runPageSpeedAnalysis(rawUrl, strategy = "mobile") {
   const url = normalizeUrl(rawUrl);
   const officialPageSpeedUrl = `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(url)}`;
   const analyzedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GEMINI_API_KEY;
+  const rawKey = (process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GEMINI_API_KEY || "").trim();
+  const isPlaceholder = !rawKey || rawKey === "MY_GEMINI_API_KEY" || rawKey === "YOUR_API_KEY" || rawKey.startsWith("MY_") || rawKey.includes("PLACEHOLDER");
+  const apiKey = isPlaceholder ? "" : rawKey;
   if (apiKey) {
     try {
-      const googleApiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=performance&category=accessibility&category=best-practices&category=seo&key=${apiKey}`;
+      const googleApiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=performance&category=accessibility&category=best-practices&category=seo&key=${encodeURIComponent(apiKey)}`;
       const response = await fetch(googleApiUrl, {
         headers: { "Accept": "application/json" }
       });

@@ -54,23 +54,25 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
     setHasAdmin(initialHasAdmin);
   }, [initialHasAdmin]);
 
-  useEffect(() => {
-    async function checkCurrentStatus() {
-      try {
-        const status = await authService.checkSystemStatus();
-        setHasAdmin(status.hasAdmin);
-        setServerConnected(status.serverConnected);
-        if (status.maskedEmail) {
-          setRegisteredEmailHint(status.maskedEmail);
-        }
-        const remembered = authService.getRememberedEmail();
-        if (remembered) {
-          setLoginEmail(remembered);
-        }
-      } catch (err) {
-        console.warn('Status check warning:', err);
+  const checkCurrentStatus = async () => {
+    try {
+      const status = await authService.checkSystemStatus();
+      setHasAdmin(status.hasAdmin);
+      setServerConnected(status.serverConnected);
+      if (status.maskedEmail) {
+        setRegisteredEmailHint(status.maskedEmail);
       }
+      const remembered = authService.getRememberedEmail();
+      if (remembered) {
+        setLoginEmail(remembered);
+      }
+    } catch (err) {
+      console.warn('Status check warning:', err);
+      setServerConnected(false);
     }
+  };
+
+  useEffect(() => {
     checkCurrentStatus();
   }, []);
 
@@ -174,26 +176,35 @@ export const AdminGatekeeperView: React.FC<AdminGatekeeperViewProps> = ({
             Master Site Prompt Studio
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1.5 max-w-sm">
-            {hasAdmin
+            {!serverConnected
+              ? 'Verificando servidor de acesso exclusivo'
+              : hasAdmin
               ? 'Acesso Exclusivo do Administrador Único'
               : 'Configuração Inicial do Administrador Exclusivo'}
           </p>
         </div>
 
-        {!serverConnected && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-rose-300 block mb-0.5">Servidor de Autenticação Indisponível</strong>
-              Para manter sua senha sincronizada em todos os aparelhos, certifique-se de que o servidor Node.js está ativo na Hostinger.
+        {/* ========================================================================= */}
+        {/* STATE 0: SERVER NOT CONNECTED -> NEVER ALLOW NEW REGISTRATION             */}
+        {/* ========================================================================= */}
+        {!serverConnected ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5 leading-relaxed">
+              <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-rose-300 block mb-1">Servidor de Autenticação Indisponível</strong>
+                Não foi possível confirmar o cadastro único no servidor deste domínio. Para evitar cadastros duplicados, o acesso permanece bloqueado até a conexão com o servidor Node.js ser restabelecida.
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={checkCurrentStatus}
+              className="w-full py-3.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all cursor-pointer"
+            >
+              Tentar Conectar Novamente
+            </button>
           </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* STATE 1: NO ADMIN REGISTERED -> FIRST-TIME EXCLUSIVE SETUP                */}
-        {/* ========================================================================= */}
-        {!hasAdmin ? (
+        ) : !hasAdmin ? (
           <div>
             <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed space-y-1.5">
               <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">

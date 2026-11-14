@@ -3,8 +3,27 @@ import { ProjectExtractedData, ProjectType } from '../types/index.ts';
 import { GbpQuestionnaireData, GbpDossier, GbpAuditRequest, GbpAuditReport } from '../types/gbpTypes.ts';
 import { SalesPitchRequest, SalesPitchResult, ObjectionSolverRequest, ObjectionSolverResult } from '../types/salesTypes.ts';
 
+let lastRejectedApiKey: string | null = null;
+
+function resolveValidGeminiApiKey(): string | null {
+  const raw = process.env.GEMINI_API_KEY?.trim();
+  if (!raw) return null;
+  if (
+    raw === 'MY_GEMINI_API_KEY' ||
+    raw === 'YOUR_API_KEY' ||
+    raw.startsWith('MY_') ||
+    raw.includes('PLACEHOLDER')
+  ) {
+    return null;
+  }
+  if (lastRejectedApiKey && raw === lastRejectedApiKey) {
+    return null;
+  }
+  return raw;
+}
+
 export function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = resolveValidGeminiApiKey();
   if (!apiKey) return null;
   return new GoogleGenAI({
     apiKey,
@@ -16,13 +35,63 @@ export function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+function isInvalidApiKeyError(err: any): boolean {
+  const msg = String(err?.message || err || '');
+  return (
+    msg.includes('API key not valid') ||
+    msg.includes('API_KEY_INVALID') ||
+    msg.includes('"code":401') ||
+    err?.status === 401
+  );
+}
+
+async function generateJsonWithGemini(prompt: string, contextLabel: string): Promise<any | null> {
+  const apiKey = resolveValidGeminiApiKey();
+  if (!apiKey) return null;
+
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
+
+  const modelsToTry = ['gemini-4-hydrogen'];
+
+  for (const modelName of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+        },
+      });
+      const text = response.text;
+      if (text) {
+        return JSON.parse(text);
+      }
+    } catch (err: any) {
+      if (isInvalidApiKeyError(err)) {
+        lastRejectedApiKey = apiKey;
+        return null;
+      }
+      console.warn(`[${contextLabel}] Modelo ${modelName} indisponível: ${err?.message?.slice(0, 80)}`);
+    }
+  }
+
+  return null;
+}
+
 export function checkServerHealth() {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasKey = Boolean(resolveValidGeminiApiKey());
   return {
     status: 'ok',
     hasKey,
-    activeModel: 'gemini-3.8-flash',
-    engine: hasKey ? 'Gemini 3.8 Flash + Heurístico Resiliente' : 'Motor Heurístico Determinístico (Offline Ready)',
+    activeModel: 'gemini-4-hydrogen',
+    engine: hasKey ? 'Gemini 4 Hydrogen + Heurístico Resiliente' : 'Motor Heurístico Determinístico (Offline Ready)',
   };
 }
 
@@ -81,28 +150,7 @@ OBSERVAÇÕES ADICIONAIS:
 ${additionalNotes || 'Nenhuma'}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`Tentativa com modelo ${modelName} falhou: ${err.message?.slice(0, 80)}. Tentando próximo...`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'Briefing AI');
 }
 
 // GBP PRO: Parse raw text/file questionnaire into structured GBP questionnaire
@@ -151,26 +199,7 @@ TEXTO RECEBIDO:
 ${rawText}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`[GBP AI] Tentativa com modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'GBP AI');
 }
 
 // GBP PRO: Generate full 13-stage dossier with Gemini focused on Google Maps ranking performance
@@ -239,26 +268,7 @@ Retorne OBRIGATORIAMENTE um JSON estruturado com os seguintes campos:
 - maintenancePlan90Days: { month1, month2, month3 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`[GBP Dossier AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'GBP Dossier AI');
 }
 
 // GBP PRO: Audit Profile (by URL or full data)
@@ -302,26 +312,7 @@ DADOS / LINK FORNECIDO:
 ${JSON.stringify(request, null, 2)}
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`[GBP Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'GBP Audit AI');
 }
 
 export interface ScrapedSiteImage {
@@ -995,63 +986,48 @@ Todo site e landing page DEVE atingir nota >= 9.5 (95+) no Google PageSpeed Insi
 12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 autossuficiente e completo, contendo seção explícita com TODAS as URLs exatas das imagens do cliente e TODOS os dados reais do cliente para preservação obrigatória, mais meta 9.5+ PageSpeed.
 `;
 
-  const modelsToTry = ['gemini-4-hydrogen', 'gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        const parsed = JSON.parse(text);
-        // Server-side safeguard: never lose real scraped images or real scraped contacts
-        if (liveScrape) {
-          if (liveScrape.images.length > 0) {
-            const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
-            const geminiImgs: any[] = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
-            const sanitizedGemini = geminiImgs.filter(
-              (g) => typeof g?.url === 'string' && scrapedByUrl.has(g.url)
-            );
-            const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
-            const mergedImages = [
-              ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
-              ...liveScrape.images.filter((s) => !seenUrls.has(s.url)),
-            ];
-            parsed.extractedImages = mergedImages;
-          }
-          parsed.ownerInfo = {
-            ...(parsed.ownerInfo || {}),
-            businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || '',
-            ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || 'Não identificado no HTML — confirmar com cliente',
-            roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || 'Confirmar com cliente',
-            whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || 'Não identificado no HTML — confirmar com cliente',
-            phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || 'Não identificado no HTML — confirmar com cliente',
-            email: liveScrape.emails[0] || parsed.ownerInfo?.email || 'Não identificado no HTML — confirmar com cliente',
-            fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || 'Não identificado no HTML — confirmar com cliente',
-            cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || 'Confirmar cidade/UF',
-            cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || undefined,
-            instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || undefined,
-            facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || undefined,
-            linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || undefined,
-            youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || undefined,
-          };
-          parsed.liveScrapedUsed = true;
-          parsed.preservedClientAssetCount = liveScrape.images.length;
-          parsed.siteTitle = liveScrape.title || undefined;
-          parsed.metaDescription = liveScrape.description || undefined;
-          parsed.h1Text = liveScrape.h1 || undefined;
-          parsed.extractedHeadings = liveScrape.headings;
-          parsed.extractedServices = liveScrape.servicesDetected;
-        }
-        return parsed;
+  const parsed = await generateJsonWithGemini(prompt, 'Site Audit AI');
+  if (parsed) {
+    // Server-side safeguard: never lose real scraped images or real scraped contacts
+    if (liveScrape) {
+      if (liveScrape.images.length > 0) {
+        const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
+        const geminiImgs: any[] = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
+        const sanitizedGemini = geminiImgs.filter(
+          (g) => typeof g?.url === 'string' && scrapedByUrl.has(g.url)
+        );
+        const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
+        const mergedImages = [
+          ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
+          ...liveScrape.images.filter((s) => !seenUrls.has(s.url)),
+        ];
+        parsed.extractedImages = mergedImages;
       }
-    } catch (err: any) {
-      console.warn(`[Site Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
+      parsed.ownerInfo = {
+        ...(parsed.ownerInfo || {}),
+        businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || '',
+        ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || 'Não identificado no HTML — confirmar com cliente',
+        roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || 'Confirmar com cliente',
+        whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || 'Não identificado no HTML — confirmar com cliente',
+        phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || 'Não identificado no HTML — confirmar com cliente',
+        email: liveScrape.emails[0] || parsed.ownerInfo?.email || 'Não identificado no HTML — confirmar com cliente',
+        fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || 'Não identificado no HTML — confirmar com cliente',
+        cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || 'Confirmar cidade/UF',
+        cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || undefined,
+        instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || undefined,
+        facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || undefined,
+        linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || undefined,
+        youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || undefined,
+      };
+      parsed.liveScrapedUsed = true;
+      parsed.preservedClientAssetCount = liveScrape.images.length;
+      parsed.siteTitle = liveScrape.title || undefined;
+      parsed.metaDescription = liveScrape.description || undefined;
+      parsed.h1Text = liveScrape.h1 || undefined;
+      parsed.extractedHeadings = liveScrape.headings;
+      parsed.extractedServices = liveScrape.servicesDetected;
     }
+    return parsed;
   }
 
   return null;
@@ -1178,26 +1154,7 @@ Gere um JSON com o esquema exato:
 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`[Sales Pitch AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'Sales Pitch AI');
 }
 
 export async function solveObjectionWithGemini(
@@ -1239,25 +1196,6 @@ Retorne um JSON com o esquema:
 }
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
-  for (const modelName of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      const text = response.text;
-      if (text) {
-        return JSON.parse(text);
-      }
-    } catch (err: any) {
-      console.warn(`[Objection Solver AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);
-    }
-  }
-
-  return null;
+  return generateJsonWithGemini(prompt, 'Objection Solver AI');
 }
 

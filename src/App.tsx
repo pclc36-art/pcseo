@@ -59,7 +59,7 @@ export default function App() {
   const [aiStatus, setAiStatus] = useState<HealthStatus>({
     status: 'checking',
     hasKey: false,
-    activeModel: 'gemini-3.8-flash',
+    activeModel: 'gemini-4-hydrogen',
     engine: 'Carregando...',
   });
 
@@ -198,7 +198,7 @@ export default function App() {
       showToast(
         'Análise concluída com sucesso!',
         source === 'gemini'
-          ? 'Extração avançada realizada com Gemini 3.8 Flash.'
+          ? 'Extração avançada realizada com Gemini 4 Hydrogen.'
           : 'Extração realizada pelo Motor Heurístico nativo sem inventar dados.',
         'success'
       );
