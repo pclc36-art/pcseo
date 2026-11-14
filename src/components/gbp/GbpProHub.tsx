@@ -383,6 +383,7 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
             }}
             onCreateSiteProject={onCreateSiteProject}
             onBack={onBack}
+            initialMode="gbp"
           />
         </div>
       )}

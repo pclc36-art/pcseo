@@ -25,11 +25,12 @@ import {
   X
 } from 'lucide-react';
 import {
-  ALL_33_QUESTIONNAIRES,
-  QUESTIONNAIRE_CATEGORIES,
+  SITE_QUESTIONNAIRES,
+  GBP_QUESTIONNAIRES,
+  SITE_QUESTIONNAIRE_CATEGORIES,
+  GBP_QUESTIONNAIRE_CATEGORIES,
   QuestionnaireTemplate,
   getQuestionnaireById,
-  getTotalQuestionCount,
 } from '../../data/questionnaires';
 import { NicheQuestionItem } from '../../data/questionnaires/types';
 import { GbpQuestionnaireData } from '../../types/gbpTypes';
@@ -45,6 +46,7 @@ interface DedicatedQuestionnairesHubProps {
   onGenerateDossierFromQuestionnaire?: (data: Partial<GbpQuestionnaireData>) => void;
   onCreateSiteProject?: (briefing: string, clientName: string, projectName: string) => void;
   onBack?: () => void;
+  initialMode?: 'sites' | 'gbp';
 }
 
 export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProps> = ({
@@ -52,8 +54,10 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
   onGenerateDossierFromQuestionnaire,
   onCreateSiteProject,
   onBack,
+  initialMode = 'sites',
 }) => {
-  // State: selected template (null = view catalog list, or specific template id)
+  // State: mode ('sites' | 'gbp') & selected template (null = catalog, or specific template id)
+  const [questionnaireMode, setQuestionnaireMode] = useState<'sites' | 'gbp'>(initialMode);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [searchCatalogFilter, setSearchCatalogFilter] = useState('');
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('all');
@@ -310,7 +314,18 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
         // If there was an inline answer or just question text
       } else if (currentNumber !== null) {
         // Exclude section dividers or metadata lines
-        if (!line.startsWith('---') && !line.startsWith('QUESTIONARIO') && !line.startsWith('Cliente:') && !line.startsWith('Empresa:') && !line.startsWith('Total:')) {
+        if (
+          !line.startsWith('---') &&
+          !line.startsWith('QUESTIONARIO') &&
+          !line.startsWith('QUESTIONÁRIO') &&
+          !line.startsWith('Cliente:') &&
+          !line.startsWith('Empresa:') &&
+          !line.startsWith('Escritório:') &&
+          !line.startsWith('Consultório') &&
+          !line.startsWith('Estabelecimento:') &&
+          !line.startsWith('Loja:') &&
+          !line.startsWith('Total')
+        ) {
           currentAnswerLines.push(rawLine);
         }
       }
@@ -336,6 +351,7 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
   const handleTriggerDossierGeneration = () => {
     if (!activeTemplate) return;
     const nameAns = answers[`${activeTemplate.id}_1`] || answers[`${activeTemplate.id}_2`];
+    const cleanTitle = activeTemplate.title.replace(/\s*\(Google Meu Negócio\)\s*$/i, '');
 
     const answersText = Object.entries(answers)
       .map(([id, val]) => {
@@ -345,33 +361,89 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
       .filter(Boolean)
       .join('\n\n');
 
+    const addressAns = activeTemplate.questions
+      .filter((q) => /endereço|ponto físico|sala física/i.test(q.question))
+      .map((q) => answers[q.id])
+      .find((v) => v && v.trim());
+
+    const areaAns = activeTemplate.questions
+      .filter((q) => /bairros e cidades|regiões/i.test(q.question))
+      .map((q) => answers[q.id])
+      .find((v) => v && v.trim());
+
+    const hoursAns = activeTemplate.questions
+      .filter((q) => /dias e horários/i.test(q.question))
+      .map((q) => answers[q.id])
+      .find((v) => v && v.trim());
+
+    const contactAns = activeTemplate.questions
+      .filter((q) => /telefone|whatsapp/i.test(q.question))
+      .map((q) => answers[q.id])
+      .find((v) => v && v.trim());
+
+    const phoneMatch = contactAns?.match(/(\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})/);
+
     const mappedData: Partial<GbpQuestionnaireData> = {
       businessName: nameAns || activeTemplate.sampleBusinessName,
-      primaryNiche: activeTemplate.title,
-      serviceAreas: ['Bairro Central', 'Região Metropolitana'],
+      primaryNiche: cleanTitle,
+      fullAddress: addressAns || '',
+      operatingHours: hoursAns || undefined,
+      whatsapp: phoneMatch ? phoneMatch[1] : undefined,
+      serviceAreas: areaAns
+        ? areaAns.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
+        : ['Região local e bairros atendidos'],
       additionalNotes: answersText,
-      targetAudience: `Público do segmento ${activeTemplate.title}`,
-      differentials: ['Atendimento de excelência', 'Equipe certificada', 'Tecnologia avançada'],
-      userSuggestedKeywords: [
-        `${activeTemplate.title.toLowerCase()} perto de mim`,
-        `${activeTemplate.title.toLowerCase()} em sp`,
-        `${activeTemplate.title.toLowerCase()} recomendada`,
-      ],
+      targetAudience: `Público do segmento ${cleanTitle}`,
+      differentials: ['Atendimento personalizado', 'Estrutura acolhedora', 'Transparência nos prazos e valores'],
+      userSuggestedKeywords: [],
     };
 
     if (onGenerateDossierFromQuestionnaire) {
       onGenerateDossierFromQuestionnaire(mappedData);
     } else {
-      onNotify('Dossier Pronto', 'Respostas estruturadas prontas para o construtor do GBP Pro.', 'info');
+      onNotify('Dossiê Pronto', 'Respostas estruturadas prontas para o construtor do GBP Pro.', 'info');
     }
+  };
+
+  const getEntityLabelForTemplate = (tpl: QuestionnaireTemplate): string => {
+    const baseId = tpl.id.replace(/^gbp_/, '');
+    if (
+      [
+        'advogado_individual_lp',
+        'advogado_individual_gbp',
+        'escritorio_advocacia',
+        'arquitetura_interiores',
+        'contabilidade_contabil',
+      ].includes(baseId)
+    ) {
+      return 'Escritório / Profissional';
+    }
+    if (
+      [
+        'medico_individual',
+        'fisioterapeuta',
+        'psicologo_terapeuta',
+        'nutricionista',
+        'clinica_estetica',
+        'clinica_medica',
+        'dentista_odonto',
+      ].includes(baseId)
+    ) {
+      return 'Consultório / Clínica';
+    }
+    if (['restaurante', 'pizzaria', 'bar_pub', 'cafeteria', 'confeitaria', 'petshop_veterinaria'].includes(baseId)) {
+      return 'Estabelecimento / Marca';
+    }
+    return 'Empresa / Marca';
   };
 
   // Copy structured briefing for Master Prompt
   const handleCopyForPromptMaster = async () => {
     if (!activeTemplate) return;
     const businessName = answers[`${activeTemplate.id}_1`] || activeTemplate.sampleBusinessName;
+    const entityLabel = getEntityLabelForTemplate(activeTemplate);
     let text = `BRIEFING ESTRATÉGICO DO CLIENTE — NICHO: ${activeTemplate.title.toUpperCase()}\n`;
-    text += `Empresa / Marca: ${businessName}\n`;
+    text += `${entityLabel}: ${businessName}\n`;
     text += `Segmento: ${activeTemplate.title} (${activeTemplate.categoryTitle})\n`;
     text += `Perguntas Respondidas: ${answeredCount} de ${totalQuestions}\n\n`;
 
@@ -398,8 +470,9 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
   const handleCreateSiteProject = () => {
     if (!activeTemplate) return;
     const businessName = answers[`${activeTemplate.id}_1`] || activeTemplate.sampleBusinessName;
+    const entityLabel = getEntityLabelForTemplate(activeTemplate);
     let briefing = `BRIEFING ESTRATÉGICO DO CLIENTE — NICHO: ${activeTemplate.title.toUpperCase()}\n`;
-    briefing += `Empresa / Marca: ${businessName}\n`;
+    briefing += `${entityLabel}: ${businessName}\n`;
     briefing += `Segmento: ${activeTemplate.title} (${activeTemplate.categoryTitle})\n\n`;
 
     activeTemplate.questions.forEach((q) => {
@@ -417,13 +490,15 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
   };
 
   // ==========================================
-  // VIEW 1: CATALOG OF ALL 33 QUESTIONNAIRES
+  // VIEW 1: CATALOG OF SEPARATE SITE & GBP QUESTIONNAIRES
   // ==========================================
   if (!activeTemplate) {
-    const totalAllQuestions = getTotalQuestionCount();
+    const isSitesMode = questionnaireMode === 'sites';
+    const currentTemplates = isSitesMode ? SITE_QUESTIONNAIRES : GBP_QUESTIONNAIRES;
+    const currentCategories = isSitesMode ? SITE_QUESTIONNAIRE_CATEGORIES : GBP_QUESTIONNAIRE_CATEGORIES;
 
     // Filter categories and templates based on search and selected tab
-    const filteredCategories = QUESTIONNAIRE_CATEGORIES.map((cat) => {
+    const filteredCategories = currentCategories.map((cat) => {
       if (selectedCategoryTab !== 'all' && cat.key !== selectedCategoryTab) {
         return { ...cat, templates: [] };
       }
@@ -457,20 +532,73 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           </div>
         )}
 
+        {/* Mode Switcher: Sites/LP vs Google Meu Negócio */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 rounded-2xl bg-slate-900/90 border border-slate-800 w-fit">
+          <button
+            type="button"
+            onClick={() => {
+              setQuestionnaireMode('sites');
+              setSelectedCategoryTab('all');
+            }}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              isSitesMode
+                ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg shadow-cyan-600/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+            }`}
+          >
+            <Globe className="w-4 h-4" />
+            <span>Sites & Landing Pages ({SITE_QUESTIONNAIRES.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuestionnaireMode('gbp');
+              setSelectedCategoryTab('all');
+            }}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              !isSitesMode
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Google Meu Negócio ({GBP_QUESTIONNAIRES.length})</span>
+          </button>
+        </div>
+
         {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 p-6 sm:p-8 shadow-xl">
+        <div
+          className={`relative overflow-hidden rounded-2xl border p-6 sm:p-8 shadow-xl ${
+            isSitesMode
+              ? 'border-indigo-500/30 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900'
+              : 'border-emerald-500/30 bg-gradient-to-br from-slate-900 via-emerald-950/35 to-slate-900'
+          }`}
+        >
           <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{ALL_33_QUESTIONNAIRES.length} Modelos Estratégicos • Perguntas Fáceis para o Cliente & Alta Conversão</span>
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 border ${
+                isSitesMode
+                  ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300'
+                  : 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {isSitesMode
+                  ? `${currentTemplates.length} Questionários para Criação de Sites & Landing Pages`
+                  : `${currentTemplates.length} Questionários para Perfil no Google Meu Negócio`}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Questionários Estratégicos para Sites, Landing Pages & Google
+              {isSitesMode
+                ? 'Questionários para Clientes — Criação de Sites & Landing Pages'
+                : 'Questionários para Clientes — Perfil no Google Meu Negócio'}
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-              Perguntas objetivas e fáceis de responder pelo cliente, sem jargões técnicos ou complicações. 
-              As respostas fornecem todas as informações úteis para o <strong>Prompt Mestre</strong> montar a estrutura completa do site 
-              (<strong>Hero, Serviços, Sobre Nós, Diferenciais, Depoimentos, FAQ e CTA de WhatsApp</strong>) e também colocar o perfil no topo das buscas!
+              {isSitesMode
+                ? 'Perguntas simples e diretas para o cliente responder com todas as informações reais do negócio (apresentação, serviços, diferenciais, dúvidas, história, horários, contatos e fotos) para unir ao Prompt Mestre e criar sites e landing pages completas.'
+                : 'Perguntas fáceis e objetivas focadas apenas nos dados que o Google Maps exige para criar e configurar o perfil da empresa (nome exato da placa, atividades, endereço/bairros, horários, contatos, comodidades, serviços e fotos reais).'}
             </p>
           </div>
         </div>
@@ -483,7 +611,7 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
               type="text"
               value={searchCatalogFilter}
               onChange={(e) => setSearchCatalogFilter(e.target.value)}
-              placeholder="Buscar por nicho ou palavra-chave..."
+              placeholder="Buscar por nicho ou segmento..."
               className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -498,9 +626,9 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
                   : 'bg-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
-              Todos ({ALL_33_QUESTIONNAIRES.length})
+              Todos ({currentTemplates.length})
             </button>
-            {QUESTIONNAIRE_CATEGORIES.map((c) => (
+            {currentCategories.map((c) => (
               <button
                 key={c.key}
                 onClick={() => setSelectedCategoryTab(c.key)}
@@ -556,14 +684,14 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
                               {tpl.emoji}
                             </span>
                             <div className="flex flex-wrap items-center justify-end gap-1.5">
-                              {tpl.targetTool === 'landing_page' && (
+                              {tpl.targetTool !== 'gbp_pro' && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
-                                  Landing Page
+                                  Site / Landing Page
                                 </span>
                               )}
                               {tpl.targetTool === 'gbp_pro' && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                                  GBP Pro
+                                  Google Meu Negócio
                                 </span>
                               )}
                               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
@@ -632,7 +760,12 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Voltar aos {ALL_33_QUESTIONNAIRES.length} Questionários</span>
+          <span>
+            Voltar aos{' '}
+            {activeTemplate.targetTool === 'gbp_pro'
+              ? `${GBP_QUESTIONNAIRES.length} Questionários Google Meu Negócio`
+              : `${SITE_QUESTIONNAIRES.length} Questionários Sites & LPs`}
+          </span>
         </button>
 
         <span className="text-xs text-slate-400 font-medium">
@@ -653,14 +786,14 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                   Template Especializado • {totalQuestions} Perguntas
                 </div>
-                {activeTemplate.targetTool === 'landing_page' && (
+                {activeTemplate.targetTool !== 'gbp_pro' && (
                   <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
-                    Foco: Criação de Landing Page
+                    Foco: Criação de Site / Landing Page
                   </span>
                 )}
                 {activeTemplate.targetTool === 'gbp_pro' && (
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-                    Foco: Google Business Profile Pro
+                    Foco: Perfil no Google Meu Negócio
                   </span>
                 )}
               </div>
@@ -749,32 +882,36 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={handleCreateSiteProject}
-              className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-600/25 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
-              title="Abre o formulário de Novo Projeto com todas as respostas do cliente preenchidas"
-            >
-              <Sparkles className="w-4 h-4 text-cyan-200" />
-              <span>Criar Projeto de Site / LP</span>
-            </button>
+            {activeTemplate.targetTool !== 'gbp_pro' ? (
+              <>
+                <button
+                  onClick={handleCreateSiteProject}
+                  className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-600/25 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
+                  title="Abre o formulário de Novo Projeto com todas as respostas do cliente preenchidas"
+                >
+                  <Sparkles className="w-4 h-4 text-cyan-200" />
+                  <span>Criar Projeto de Site / LP</span>
+                </button>
 
-            <button
-              onClick={handleCopyForPromptMaster}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-200 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-              title="Copia todas as respostas estruturadas para colar no campo de questionário do Prompt Mestre"
-            >
-              <Copy className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Copiar p/ Prompt Mestre</span>
-            </button>
-
-            <button
-              onClick={handleTriggerDossierGeneration}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-200 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-              title="Gera o dossiê de autoridade e SEO local no Google Maps"
-            >
-              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Gerar Dossiê GBP</span>
-            </button>
+                <button
+                  onClick={handleCopyForPromptMaster}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-200 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  title="Copia todas as respostas estruturadas para colar no campo de questionário do Prompt Mestre"
+                >
+                  <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Copiar p/ Prompt Mestre</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleTriggerDossierGeneration}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
+                title="Gera a estrutura completa de configuração do perfil no Google Meu Negócio"
+              >
+                <Building2 className="w-4 h-4 text-emerald-200" />
+                <span>Gerar Perfil Google Meu Negócio</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -919,13 +1056,13 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
             Copiar Texto Limpo
           </button>
 
-          {activeTemplate.targetTool === 'landing_page' ? (
+          {activeTemplate.targetTool !== 'gbp_pro' ? (
             <button
               onClick={handleCreateSiteProject}
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/30 flex items-center gap-2 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-cyan-200" />
-              Criar Projeto de Landing Page
+              Criar Projeto de Site / LP
             </button>
           ) : (
             <button
@@ -933,7 +1070,7 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-emerald-200" />
-              Gerar Dossiê GBP 100/100
+              Gerar Perfil Google Meu Negócio
             </button>
           )}
         </div>

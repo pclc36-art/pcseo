@@ -14,7 +14,7 @@ import {
 import { HostingTarget, ProjectType, TargetPlatform, TestScenario } from '../types';
 import { TEST_SCENARIOS } from '../data/testScenarios';
 import {
-  ALL_33_QUESTIONNAIRES,
+  SITE_QUESTIONNAIRES,
   QuestionnaireTemplate,
   getQuestionnaireById,
 } from '../data/questionnaires';
@@ -61,7 +61,7 @@ export const NewProjectView: React.FC<NewProjectViewProps> = ({
   const [selectedNicheId, setSelectedNicheId] = useState<string>('advogado_individual_lp');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const siteQuestionnaires = ALL_33_QUESTIONNAIRES.filter((q) => q.targetTool !== 'gbp_pro');
+  const siteQuestionnaires = SITE_QUESTIONNAIRES;
 
   const projectTypes: { value: ProjectType; label: string; desc: string }[] = [
     { value: 'landing_page', label: 'Landing page', desc: 'Foco exclusivo em conversão direta de uma oferta única' },
@@ -128,26 +128,26 @@ export const NewProjectView: React.FC<NewProjectViewProps> = ({
       [
         'advogado_individual_lp',
         'escritorio_advocacia',
-        'consultoria_empresarial',
-        'contabilidade',
-        'medico_lp',
-        'fisioterapeuta_lp',
-        'psicologo',
+        'consultoria_coaching',
+        'contabilidade_contabil',
+        'medico_individual',
+        'fisioterapeuta',
+        'psicologo_terapeuta',
         'nutricionista',
       ].includes(tpl.id)
     ) {
       return 'professional';
     }
-    if (['clinica_estetica', 'clinica_medica', 'clinica_odontologica'].includes(tpl.id)) {
+    if (['clinica_estetica', 'clinica_medica', 'dentista_odonto'].includes(tpl.id)) {
       return 'clinic';
     }
-    if (['arquitetura_interiores', 'fotografo', 'artista_banda'].includes(tpl.id)) {
+    if (['arquitetura_interiores', 'fotografo_estudio', 'artista_banda'].includes(tpl.id)) {
       return 'portfolio';
     }
-    if (['loja_roupas_moda', 'joalheria_relojoaria'].includes(tpl.id)) {
+    if (['loja_roupas', 'joalheria_relojoaria'].includes(tpl.id)) {
       return 'ecommerce';
     }
-    if (tpl.id === 'startup_saas' || tpl.targetTool === 'landing_page') {
+    if (tpl.id === 'startup_tech' || tpl.targetTool === 'landing_page') {
       return 'landing_page';
     }
     return 'local_business';

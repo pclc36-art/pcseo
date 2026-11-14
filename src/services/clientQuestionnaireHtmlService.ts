@@ -8,13 +8,184 @@ import { QuestionnaireTemplate } from '../data/questionnaires';
 export const TARGET_WHATSAPP_NUMBER = '5586994988349';
 export const TARGET_WHATSAPP_DISPLAY = '(86) 99498-8349';
 
+interface ClientHeaderFields {
+  clientLabel: string;
+  clientPlaceholder: string;
+  businessLabel: string;
+  businessExportLabel: string;
+}
+
+function getClientHeaderFields(template: QuestionnaireTemplate): ClientHeaderFields {
+  const baseId = template.id.replace(/^gbp_/, '');
+  switch (baseId) {
+    case 'advogado_individual_lp':
+    case 'advogado_individual_gbp':
+      return {
+        clientLabel: 'Seu Nome Completo (Advogado/a):',
+        clientPlaceholder: 'Ex: Dr. Rafael Nogueira',
+        businessLabel: 'Escritório em que trabalha (ou atuação autônoma):',
+        businessExportLabel: 'Escritório',
+      };
+    case 'escritorio_advocacia':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Dr. Carlos Mendes',
+        businessLabel: 'Nome do Escritório de Advocacia:',
+        businessExportLabel: 'Escritório',
+      };
+    case 'arquitetura_interiores':
+    case 'contabilidade_contabil':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Roberto Alves',
+        businessLabel: 'Nome do Escritório:',
+        businessExportLabel: 'Escritório',
+      };
+    case 'medico_individual':
+    case 'fisioterapeuta':
+    case 'psicologo_terapeuta':
+    case 'nutricionista':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder:
+          baseId === 'medico_individual' ? 'Ex: Dr. Henrique Bastos' : 'Ex: Dra. Camila Ribeiro',
+        businessLabel: 'Consultório ou Clínica onde atende:',
+        businessExportLabel: 'Consultório / Clínica',
+      };
+    case 'clinica_estetica':
+    case 'clinica_medica':
+    case 'dentista_odonto':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Dra. Camila Ramos',
+        businessLabel: 'Nome da Clínica ou Consultório:',
+        businessExportLabel: 'Clínica',
+      };
+    case 'petshop_veterinaria':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Dra. Juliana Souza',
+        businessLabel: 'Nome do Pet Shop ou Clínica Veterinária:',
+        businessExportLabel: 'Estabelecimento',
+      };
+    case 'artista_banda':
+      return {
+        clientLabel: 'Seu Nome / Responsável:',
+        clientPlaceholder: 'Ex: Lucas Ferreira',
+        businessLabel: 'Nome Artístico ou da Banda:',
+        businessExportLabel: 'Artista / Banda',
+      };
+    case 'casa_shows_teatro':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Marcos Paulo',
+        businessLabel: 'Nome da Casa de Shows / Teatro:',
+        businessExportLabel: 'Espaço',
+      };
+    case 'igreja_religiosa':
+      return {
+        clientLabel: 'Nome do Pastor / Líder / Responsável:',
+        clientPlaceholder: 'Ex: Pr. Daniel Oliveira',
+        businessLabel: 'Nome da Igreja ou Comunidade:',
+        businessExportLabel: 'Igreja / Comunidade',
+      };
+    case 'ong_instituto':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Fernanda Lima',
+        businessLabel: 'Nome da ONG ou Instituto:',
+        businessExportLabel: 'Instituição',
+      };
+    case 'escola_curso':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Prof. André Martins',
+        businessLabel: 'Nome da Escola ou Curso:',
+        businessExportLabel: 'Instituição',
+      };
+    case 'hotel_pousada':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Patrícia Gomes',
+        businessLabel: 'Nome do Hotel ou Pousada:',
+        businessExportLabel: 'Hospedagem',
+      };
+    case 'salao_beleza':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Beatriz Santos',
+        businessLabel: 'Nome do Salão ou Barbearia:',
+        businessExportLabel: 'Salão / Barbearia',
+      };
+    case 'academia_fitness':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Rodrigo Teixeira',
+        businessLabel: 'Nome da Academia ou Estúdio:',
+        businessExportLabel: 'Academia / Estúdio',
+      };
+    case 'fotografo_estudio':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Thiago Prado',
+        businessLabel: 'Nome Profissional ou do Estúdio:',
+        businessExportLabel: 'Estúdio',
+      };
+    case 'imobiliaria_corretor':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Marcelo Tavares',
+        businessLabel: 'Nome da Imobiliária ou Corretor(a):',
+        businessExportLabel: 'Imobiliária / Corretor',
+      };
+    case 'restaurante':
+    case 'pizzaria':
+    case 'bar_pub':
+    case 'cafeteria':
+    case 'confeitaria':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Gustavo Lima',
+        businessLabel: 'Nome do Estabelecimento:',
+        businessExportLabel: 'Estabelecimento',
+      };
+    case 'loja_roupas':
+    case 'joalheria_relojoaria':
+    case 'floricultura':
+    case 'produtos_agricolas':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Marina Rocha',
+        businessLabel: 'Nome da Loja:',
+        businessExportLabel: 'Loja',
+      };
+    default:
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Roberto Alves',
+        businessLabel: 'Nome da Empresa ou Marca:',
+        businessExportLabel: 'Empresa',
+      };
+  }
+}
+
 export function generateClientQuestionnaireHtml(template: QuestionnaireTemplate): string {
+  const headerFields = getClientHeaderFields(template);
+  const isGbp = template.targetTool === 'gbp_pro';
+  const badgeText = isGbp
+    ? 'Questionário • Perfil no Google Meu Negócio'
+    : 'Questionário • Criação de Site / Landing Page';
+  const introEnding = isGbp
+    ? 'Responda com informações reais da sua empresa para criarmos e configurarmos seu perfil no Google Maps.'
+    : 'Responda com informações reais do seu negócio para montarmos seu site ou landing page completa.';
+
   const serializedTemplate = JSON.stringify({
     id: template.id,
     title: template.title,
     subtitle: template.subtitle,
     categoryTitle: template.categoryTitle,
     sampleBusinessName: template.sampleBusinessName,
+    businessExportLabel: headerFields.businessExportLabel,
     questions: template.questions.map((q) => ({
       id: q.id,
       number: q.number,
@@ -29,7 +200,7 @@ export function generateClientQuestionnaireHtml(template: QuestionnaireTemplate)
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Questionário Estratégico — ${escapeHtml(template.title)}</title>
+  <title>Questionário — ${escapeHtml(template.title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -342,17 +513,17 @@ export function generateClientQuestionnaireHtml(template: QuestionnaireTemplate)
 
   <div class="container">
     <header>
-      <div class="badge">Questionário Oficial • Resposta Estratégica</div>
+      <div class="badge">${escapeHtml(badgeText)}</div>
       <h1>${escapeHtml(template.title)}</h1>
-      <p class="subtitle">${escapeHtml(template.subtitle)} — Responda com suas informações para montarmos o projeto completo do seu site e perfil no Google.</p>
+      <p class="subtitle">${escapeHtml(template.subtitle)} — ${escapeHtml(introEnding)}</p>
 
       <div class="client-card">
         <div class="form-group">
-          <label>Seu Nome Completo:</label>
-          <input type="text" id="clientName" placeholder="Ex: Roberto Alves" />
+          <label>${escapeHtml(headerFields.clientLabel)}</label>
+          <input type="text" id="clientName" placeholder="${escapeHtml(headerFields.clientPlaceholder)}" />
         </div>
         <div class="form-group">
-          <label>Nome da Empresa ou Clínica:</label>
+          <label>${escapeHtml(headerFields.businessLabel)}</label>
           <input type="text" id="businessName" placeholder="Ex: ${escapeHtml(template.sampleBusinessName)}" />
         </div>
       </div>
@@ -463,7 +634,7 @@ export function generateClientQuestionnaireHtml(template: QuestionnaireTemplate)
 
       let out = 'QUESTIONÁRIO ESTRATÉGICO: ' + templateData.title.toUpperCase() + '\\n';
       out += 'Cliente: ' + client + '\\n';
-      out += 'Empresa: ' + business + '\\n';
+      out += (templateData.businessExportLabel || 'Empresa') + ': ' + business + '\\n';
       out += 'Total de Perguntas: ' + templateData.questions.length + '\\n\\n';
 
       templateData.questions.forEach(q => {

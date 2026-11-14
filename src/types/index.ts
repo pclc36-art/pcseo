@@ -53,7 +53,8 @@ export interface ImageAsset {
   id: string;
   name: string;
   category: ImageCategory;
-  dataUrl?: string; // Compressed Base64 data URL for browser thumbnail preview
+  url?: string; // Original verified client URL when extracted from audited site
+  dataUrl?: string; // Compressed Base64 data URL for browser thumbnail preview (or remote URL fallback)
   altText: string;
   sectionTarget: string; // Target section in the site
   isRealClientPhoto: boolean; // True if provided by client, false if placeholder/reference
@@ -105,6 +106,18 @@ export interface ProjectExtractedData {
   technicalRequirements: string[];
   hostingTarget?: HostingTarget;
   preferredFramework?: string;
+  heroHeadline?: string;
+  heroSubheadline?: string;
+  heroCtaText?: string;
+  pricingAndPayment?: string;
+  processSteps?: string[];
+  brandStory?: string;
+  guaranteesAndPolicies?: string;
+  openingHours?: string;
+  faqItems?: string[];
+  availableMediaAssets?: string;
+  seoKeywords?: string[];
+  rawBriefingSummary?: string;
   missingFields: string[];
   contradictions: string[];
   additionalNotes: string;

@@ -32,9 +32,60 @@ import {
 import { gbpDatabase } from '../../services/gbpDatabase';
 import { apiService } from '../../services/apiService';
 import { parseGbpRawTextHeuristic } from '../../services/gbpEngine';
-import { ALL_33_QUESTIONNAIRES, QuestionnaireTemplate, QUESTIONNAIRE_CATEGORIES } from '../../data/questionnaires';
+import {
+  GBP_QUESTIONNAIRES,
+  GBP_QUESTIONNAIRE_CATEGORIES,
+  QuestionnaireTemplate,
+} from '../../data/questionnaires';
 import { getGbpNichePackage, GBP_33_NICHOS_SEO_PACKAGES } from '../../data/gbp33NichosData';
 import { copyToClipboard } from '../../utils/clipboard';
+
+const GBP_NICHE_TO_TEMPLATE_ID: Record<string, string> = {
+  medico_landing: 'gbp_medico_individual',
+  dentista: 'gbp_dentista_odonto',
+  psicologo: 'gbp_psicologo_terapeuta',
+  advocacia: 'gbp_escritorio_advocacia',
+  advogado_individual_gbp: 'advogado_individual_gbp',
+  arquitetura: 'gbp_arquitetura_interiores',
+  construtora: 'gbp_construtora_eng',
+  consultoria: 'gbp_consultoria_coaching',
+  imobiliaria: 'gbp_imobiliaria_corretor',
+  contabilidade: 'gbp_contabilidade_contabil',
+  fotografo: 'gbp_fotografo_estudio',
+  artista: 'gbp_artista_banda',
+  casa_shows: 'gbp_casa_shows_teatro',
+  petshop: 'gbp_petshop_veterinaria',
+  agro: 'gbp_produtos_agricolas',
+  moda: 'gbp_loja_roupas',
+  joalheria: 'gbp_joalheria_relojoaria',
+  academia: 'gbp_academia_fitness',
+  escola: 'gbp_escola_curso',
+  hotel: 'gbp_hotel_pousada',
+  igreja: 'gbp_igreja_religiosa',
+  ong: 'gbp_ong_instituto',
+  startup: 'gbp_startup_tech',
+};
+
+const TEMPLATE_ID_TO_GBP_NICHE: Record<string, string> = Object.fromEntries(
+  Object.entries(GBP_NICHE_TO_TEMPLATE_ID).map(([k, v]) => [v, k])
+);
+
+function resolveGbpTemplateForNicheId(nicheId: string): QuestionnaireTemplate {
+  const mappedId = GBP_NICHE_TO_TEMPLATE_ID[nicheId] || `gbp_${nicheId}`;
+  return (
+    GBP_QUESTIONNAIRES.find((t) => t.id === nicheId) ||
+    GBP_QUESTIONNAIRES.find((t) => t.id === mappedId) ||
+    GBP_QUESTIONNAIRES[0]
+  );
+}
+
+function resolveNicheSeoKeyFromTemplateId(tplId: string): string {
+  if (GBP_33_NICHOS_SEO_PACKAGES[tplId]) return tplId;
+  if (TEMPLATE_ID_TO_GBP_NICHE[tplId]) return TEMPLATE_ID_TO_GBP_NICHE[tplId];
+  const stripped = tplId.replace(/^gbp_/, '');
+  if (GBP_33_NICHOS_SEO_PACKAGES[stripped]) return stripped;
+  return 'clinica_estetica';
+}
 
 interface GbpQuestionnaireFormProps {
   onGenerateDossier: (questionnaire: GbpQuestionnaireData) => void;
@@ -102,8 +153,8 @@ export const GbpQuestionnaireForm: React.FC<GbpQuestionnaireFormProps> = ({
   const [selectedNicheId, setSelectedNicheId] = useState<string>('clinica_estetica');
   const [isProcessingPaste, setIsProcessingPaste] = useState(false);
 
-  // Browse GBP-compatible Niches State (exclude LP-only templates)
-  const gbpQuestionnaires = ALL_33_QUESTIONNAIRES.filter((t) => t.targetTool !== 'landing_page');
+  // Browse dedicated GBP Questionnaires (34 niches)
+  const gbpQuestionnaires = GBP_QUESTIONNAIRES;
   const [browseCategoryKey, setBrowseCategoryKey] = useState<string>('all');
   const [activeNicheTemplate, setActiveNicheTemplate] = useState<QuestionnaireTemplate>(gbpQuestionnaires[0]);
   const [nicheAnswers, setNicheAnswers] = useState<Record<string, string>>({});
@@ -259,30 +310,50 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
 
   // Generate directly from the interactive GBP niche form
   const handleGenerateFromNicheRunner = () => {
-    const pkg = getGbpNichePackage(activeNicheTemplate.id) || getGbpNichePackage(activeNicheTemplate.title);
+    const seoKey = resolveNicheSeoKeyFromTemplateId(activeNicheTemplate.id);
+    const pkg = getGbpNichePackage(seoKey) || getGbpNichePackage(activeNicheTemplate.title);
     const bName = nicheAnswers[`${activeNicheTemplate.id}_1`] || activeNicheTemplate.sampleBusinessName;
-    const clientCity = 'São Paulo';
+
+    const findByQuestion = (re: RegExp) => {
+      const q = activeNicheTemplate.questions.find((item) => re.test(item.question));
+      return q ? (nicheAnswers[q.id] || q.sampleAnswer || '').trim() : '';
+    };
+
+    const rawAddress = findByQuestion(/ponto físico|sala física|endereço completo/i);
+    const rawAreas = findByQuestion(/bairros e cidades/i);
+    const rawContacts = findByQuestion(/telefone e whatsapp|telefone\/whatsapp/i);
+    const rawHours = findByQuestion(/dias e horários/i);
+
+    const cityStateMatch = rawAddress.match(/([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+)*)\s*[-\/]\s*([A-Z]{2})/);
+    const clientCity = cityStateMatch ? cityStateMatch[1].trim() : 'São Paulo';
+    const clientState = cityStateMatch ? cityStateMatch[2].trim() : 'SP';
+    const phoneMatch = rawContacts.match(/(\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})/);
+    const siteMatch = rawContacts.match(/(https?:\/\/[^\s|]+)/i);
 
     const answersText = Object.entries(nicheAnswers)
       .map(([id, val]) => {
         const item = activeNicheTemplate.questions.find((q) => q.id === id);
-        return item ? `${item.number}. ${item.question}\nResposta: ${val}` : '';
+        return item && val.trim() ? `${item.number}. ${item.question}\nResposta: ${val}` : '';
       })
       .filter(Boolean)
       .join('\n\n');
 
     const completeData: GbpQuestionnaireData = {
       businessName: bName,
-      primaryNiche: activeNicheTemplate.title,
-      fullAddress: `Atendimento em ${clientCity}`,
+      primaryNiche: activeNicheTemplate.title.replace(/\s*\(Google Meu Negócio\)\s*$/i, ''),
+      fullAddress: rawAddress || `Atendimento em ${clientCity} - ${clientState}`,
       city: clientCity,
-      state: 'SP',
-      serviceAreas: [clientCity, 'Região Central'],
-      phone: '(11) 3456-7890',
-      whatsapp: '(11) 98765-4321',
-      website: `https://${bName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`,
-      operatingHours: 'Segunda a Sexta: 08:00 às 18:00 | Sábado: 08:00 às 12:00',
-      serviceFormat: 'physical',
+      state: clientState,
+      serviceAreas: rawAreas
+        ? rawAreas.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
+        : [clientCity, 'Região Central'],
+      phone: phoneMatch ? phoneMatch[1] : '(11) 3456-7890',
+      whatsapp: phoneMatch ? phoneMatch[1] : '(11) 98765-4321',
+      website: siteMatch ? siteMatch[1] : `https://${bName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`,
+      operatingHours: rawHours || 'Segunda a Sexta: 08:00 às 18:00 | Sábado: 08:00 às 12:00',
+      serviceFormat: /apenas online|sem local aberto ao público|somente em domicílio/i.test(rawAddress)
+        ? 'service_area'
+        : 'physical',
       items: pkg.recommendedServices.map((s, idx) => ({
         id: `item_${idx + 1}`,
         name: s.name,
@@ -292,10 +363,10 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
         description: s.description.replace(/\[cidade\]/gi, clientCity),
       })),
       priorityItemToPromote: pkg.recommendedServices[0]?.name,
-      differentials: ['Atendimento com hora marcada', 'Profissionais altamente qualificados', 'Garantia de satisfação'],
-      yearsInMarket: 'Mais de 10 anos',
+      differentials: ['Atendimento personalizado', 'Profissionais qualificados', 'Transparência e confiança'],
+      yearsInMarket: 'Experiência consolidada na região',
       certificationsAndLicenses: [pkg.primaryCategory],
-      targetAudience: `Público exigente de ${activeNicheTemplate.title}`,
+      targetAudience: `Clientes da região de ${clientCity} buscando ${pkg.name}`,
       userSuggestedKeywords: pkg.topKeywordsGoogle.map((k) => k.keyword.replace(/\[cidade\]/gi, clientCity)),
       primaryObjective: 'appointments',
       socialMediaLinks: [],
@@ -309,7 +380,7 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
         hasWebsite: true,
       },
       hasExistingProfile: false,
-      additionalNotes: answersText || `Questionário dos 33 nichos preenchido para ${activeNicheTemplate.title}.`,
+      additionalNotes: answersText || `Questionário preenchido para ${activeNicheTemplate.title}.`,
     };
 
     onGenerateDossier(completeData);
@@ -462,12 +533,12 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
                 <button
                   type="button"
                   onClick={() => {
-                    const sampleNiche = ALL_33_QUESTIONNAIRES.find((n) => n.id === selectedNicheId) || ALL_33_QUESTIONNAIRES[0];
+                    const sampleNiche = resolveGbpTemplateForNicheId(selectedNicheId);
                     const sampleText = sampleNiche.questions
                       .map((q) => `${q.number}. ${q.question}\nResposta: ${q.sampleAnswer}`)
                       .join('\n\n');
                     setPastedQuestionnaire(
-                      `Nome da Empresa: ${sampleNiche.sampleBusinessName}\nEndereço: Avenida Paulista, 1000 - Bela Vista, São Paulo - SP\nTelefone/WhatsApp: (11) 98765-4321\nSegmento: ${sampleNiche.title}\n\n${sampleText}`
+                      `Nome na Placa / Empresa: ${sampleNiche.sampleBusinessName}\nSegmento: ${sampleNiche.title}\n\n${sampleText}`
                     );
                     onNotify('Exemplo Carregado', `Dados completos de exemplo de ${sampleNiche.title} inseridos na caixa de texto.`, 'info');
                   }}
@@ -532,10 +603,10 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-indigo-400" />
-                {gbpQuestionnaires.length} Questionários Estratégicos para Ranquear no Google Maps
+                {gbpQuestionnaires.length} Questionários para Clientes — Google Meu Negócio
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Envie o questionário direto para o WhatsApp do cliente ou teste com respostas prontas.
+                Perguntas fáceis para o cliente responder e você configurar o perfil completo no Google Maps.
               </p>
             </div>
 
@@ -582,8 +653,8 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
             >
               Todos ({gbpQuestionnaires.length})
             </button>
-            {QUESTIONNAIRE_CATEGORIES.map((cat) => {
-              const catCount = cat.templates.filter((t) => t.targetTool !== 'landing_page').length;
+            {GBP_QUESTIONNAIRE_CATEGORIES.map((cat) => {
+              const catCount = cat.templates.length;
               return (
                 <button
                   key={cat.key}
@@ -614,7 +685,8 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
                   type="button"
                   onClick={() => {
                     setActiveNicheTemplate(template);
-                    setSelectedNicheId(template.id);
+                    setSelectedNicheId(resolveNicheSeoKeyFromTemplateId(template.id));
+                    setNicheAnswers({});
                   }}
                   className={`p-2.5 rounded-xl text-left border transition-all text-xs flex flex-col justify-between ${
                     isSelected
@@ -641,10 +713,10 @@ Resposta: ${nicheAnswers[q.id] || '(A preencher)'}
                 <span className="text-2xl">{activeNicheTemplate.emoji}</span>
                 <div>
                   <h4 className="text-sm font-bold text-white">
-                    {activeNicheTemplate.title} — {activeNicheTemplate.totalQuestions} Perguntas para Ranquear no Google
+                    {activeNicheTemplate.title} — {activeNicheTemplate.totalQuestions} Perguntas para o Cliente
                   </h4>
                   <p className="text-[11px] text-slate-400">
-                    Categoria Primária: <strong className="text-cyan-400">{activeNicheTemplate.defaultPrimaryCategory}</strong> • Subtítulo: {activeNicheTemplate.subtitle}
+                    Categoria Principal no Google: <strong className="text-cyan-400">{activeNicheTemplate.defaultPrimaryCategory}</strong>
                   </p>
                 </div>
               </div>

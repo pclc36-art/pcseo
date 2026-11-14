@@ -327,7 +327,7 @@ export default function App() {
       case 'site_auditor':
         return { title: 'Auditor de Sites pelo Prompt Mestre', badge: 'Master Site Engine 9.0 & Otimização' };
       case 'questionnaires':
-        return { title: 'Google Business Profile Pro', badge: '33 Questionários por Nicho' };
+        return { title: 'Central de Questionários', badge: 'Sites & LPs + Google Meu Negócio' };
       case 'gbp_pro':
         return { title: 'Google Business Profile Pro', badge: '33 Nichos, Auditoria & Dossiê 100/100' };
       case 'projects':

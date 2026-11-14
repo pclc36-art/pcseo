@@ -60,6 +60,17 @@ Retorne um JSON válido com os seguintes campos:
 - preferencesEsthetic (string)
 - references (array de strings)
 - mandatoryContent (array de strings, ex: CRM, CRO, OAB)
+- heroHeadline (string: promessa principal ou título de impacto para o topo)
+- heroSubheadline (string: explicação complementar do Hero)
+- heroCtaText (string: texto ideal do botão principal de conversão)
+- pricingAndPayment (string: política de valores, parcelamento, planos ou orçamento)
+- processSteps (array de strings: etapas passo a passo de atendimento até a entrega)
+- brandStory (string: história da empresa, tempo de atuação e formação)
+- guaranteesAndPolicies (string: garantias, sigilo, políticas ou compromisso técnico)
+- openingHours (string: dias e horários de atendimento e tempo médio de resposta)
+- faqItems (array de objetos { question: string, answer: string } com dúvidas frequentes reais)
+- availableMediaAssets (string: fotos, vídeos, logos ou materiais disponíveis)
+- seoKeywords (array de strings: palavras-chave locais e termos de busca)
 - missingFields (array de strings com o que faltou de essencial)
 - contradictions (array de strings com possíveis contradições encontradas)
 
@@ -313,69 +324,586 @@ ${JSON.stringify(request, null, 2)}
   return null;
 }
 
-// Helper to scrape webpage metadata, images and contacts safely
-async function scrapeSiteHtmlPreview(targetUrl: string) {
+export interface ScrapedSiteImage {
+  id: string;
+  url: string;
+  alt: string;
+  category: 'logo' | 'hero' | 'team' | 'services' | 'facility' | 'other';
+  label: string;
+  suggestedSection: string;
+  isReal: boolean;
+}
+
+export interface ScrapedSiteData {
+  finalUrl: string;
+  title: string | null;
+  siteName: string | null;
+  description: string | null;
+  h1: string | null;
+  headings: string[];
+  ogImage: string | null;
+  logoUrl: string | null;
+  images: ScrapedSiteImage[];
+  businessName: string | null;
+  ownerName: string | null;
+  credential: string | null;
+  whatsapp: string | null;
+  phones: string[];
+  emails: string[];
+  address: string | null;
+  cityState: string | null;
+  cnpj: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  linkedin: string | null;
+  youtube: string | null;
+  servicesDetected: string[];
+  textSample: string;
+}
+
+function decodeHtmlEntities(input: string): string {
+  return input
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#(\d+);/g, (_, num) => {
+      const code = Number(num);
+      return Number.isFinite(code) ? String.fromCharCode(code) : '';
+    });
+}
+
+function extractAttr(tag: string, attrName: string): string | null {
+  const regex = new RegExp(`(?:^|\\s)${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
+  const match = tag.match(regex);
+  const val = match ? (match[1] ?? match[2] ?? match[3] ?? '') : '';
+  return val ? decodeHtmlEntities(val.trim()) : null;
+}
+
+function resolveAbsoluteUrl(raw: string | null | undefined, baseUrl: string): string | null {
+  if (!raw) return null;
+  const cleaned = decodeHtmlEntities(raw).trim().replace(/^['"]|['"]$/g, '');
+  if (!cleaned || cleaned.startsWith('data:') || cleaned.startsWith('javascript:') || cleaned.startsWith('#')) {
+    return null;
+  }
+  try {
+    const parsed = new URL(cleaned, baseUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
+function isTrackingOrJunkImage(url: string, alt: string, classes: string): boolean {
+  const lower = `${url} ${alt} ${classes}`.toLowerCase();
+  if (
+    lower.includes('facebook.com/tr') ||
+    lower.includes('google-analytics') ||
+    lower.includes('googletagmanager') ||
+    lower.includes('doubleclick') ||
+    lower.includes('/pixel') ||
+    lower.includes('1x1') ||
+    lower.includes('spacer') ||
+    lower.includes('blank.gif') ||
+    lower.includes('gravatar.com') ||
+    lower.includes('s.w.org/images/core/emoji') ||
+    lower.includes('twemoji')
+  ) {
+    return true;
+  }
+  // Ignore non-logo tiny icons/sprites unless marked as logo/brand/apple-touch-icon
+  if (url.toLowerCase().endsWith('.ico')) return true;
+  return false;
+}
+
+function classifyScrapedImage(
+  url: string,
+  alt: string,
+  contextHint: string,
+  isLogoCandidate: boolean,
+  isHeroCandidate: boolean
+): { category: ScrapedSiteImage['category']; label: string; suggestedSection: string } {
+  const signal = `${url} ${alt} ${contextHint}`.toLowerCase();
+  if (
+    isLogoCandidate ||
+    /\b(logo|logotipo|logomarca|marca|brand)\b/.test(signal)
+  ) {
+    return {
+      category: 'logo',
+      label: alt && alt.length > 2 ? `Logotipo Oficial — ${alt.slice(0, 60)}` : 'Logotipo Oficial do Cliente',
+      suggestedSection: 'Header, Navbar & Rodapé',
+    };
+  }
+  if (
+    /\b(dr|dra|doutor|doutora|equipe|team|sobre|about|fundador|founder|soci[oa]|diretor|ceo|advogad|medic|dentist|perfil|profile|autor)\b/.test(signal)
+  ) {
+    return {
+      category: 'team',
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : 'Foto Real do Responsável / Equipe',
+      suggestedSection: 'Seção Sobre / Autoridade & Especialista',
+    };
+  }
+  if (
+    isHeroCandidate ||
+    /\b(hero|banner|capa|slide|slider|destaque|cover|showcase)\b/.test(signal)
+  ) {
+    return {
+      category: 'hero',
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : 'Imagem Hero / Destaque Principal do Cliente',
+      suggestedSection: 'Primeira Dobra (Hero Section)',
+    };
+  }
+  if (
+    /\b(clinica|clínica|escritorio|escritório|consultorio|consultório|espaco|espaço|sala|estrutura|ambiente|recepcao|recepção|fachada|loja|office|studio)\b/.test(signal)
+  ) {
+    return {
+      category: 'facility',
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : 'Foto Real das Instalações / Espaço',
+      suggestedSection: 'Infraestrutura / Sobre o Espaço',
+    };
+  }
+  if (
+    /\b(serv|tratamento|procedimento|produto|solucao|solução|implant|estetica|estética|portfolio|portfólio|projeto|caso|case)\b/.test(signal)
+  ) {
+    return {
+      category: 'services',
+      label: alt && alt.length > 2 ? alt.slice(0, 70) : 'Imagem Real de Serviço / Solução',
+      suggestedSection: 'Vitrine de Serviços / Soluções',
+    };
+  }
+  return {
+    category: 'other',
+    label: alt && alt.length > 2 ? alt.slice(0, 70) : 'Imagem Real Extraída do Site do Cliente',
+    suggestedSection: 'Conteúdo / Galeria do Site',
+  };
+}
+
+function formatBrWhatsappOrPhone(rawDigits: string): string {
+  const digits = rawDigits.replace(/\D/g, '');
+  const local = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return rawDigits;
+}
+
+// Helper to scrape webpage metadata, real images and client contacts safely
+export async function scrapeSiteHtmlPreview(targetUrl: string): Promise<ScrapedSiteData | null> {
   try {
     const fullUrl = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
+    const timer = setTimeout(() => controller.abort(), 8000);
     const resp = await fetch(fullUrl, {
       signal: controller.signal,
+      redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
     });
     clearTimeout(timer);
     if (!resp.ok) return null;
+
+    const finalUrl = resp.url || fullUrl;
     const html = await resp.text();
+    if (!html || html.length < 50) return null;
 
-    // Extract og:image
-    const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    const ogImage = ogImageMatch ? ogImageMatch[1] : null;
+    // 1. Title, Meta Tags, OpenGraph
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, ' ').trim()) : null;
 
-    // Extract title
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : null;
+    let siteName: string | null = null;
+    let description: string | null = null;
+    let ogImage: string | null = null;
+    let ogTitle: string | null = null;
 
-    // Extract meta description
-    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
-    const description = descMatch ? descMatch[1].trim() : null;
+    const metaTags = [...html.matchAll(/<meta\b[^>]*>/gi)];
+    for (const m of metaTags) {
+      const tag = m[0];
+      const name = (extractAttr(tag, 'name') || '').toLowerCase();
+      const prop = (extractAttr(tag, 'property') || '').toLowerCase();
+      const content = extractAttr(tag, 'content');
+      if (!content) continue;
+      if (name === 'description' && !description) description = content;
+      if (prop === 'og:description' && !description) description = content;
+      if (prop === 'og:site_name' && !siteName) siteName = content;
+      if (prop === 'og:title' && !ogTitle) ogTitle = content;
+      if ((prop === 'og:image' || prop === 'og:image:secure_url' || name === 'twitter:image') && !ogImage) {
+        ogImage = resolveAbsoluteUrl(content, finalUrl);
+      }
+    }
 
-    // Extract images
-    const imgMatches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*alt=["']?([^"'>]*)["']?/gi)];
-    const images = imgMatches.slice(0, 10).map((m, idx) => ({
-      src: m[1],
-      alt: m[2] || `Imagem ${idx + 1}`,
-    })).filter(img => !img.src.includes('pixel') && !img.src.includes('analytics') && !img.src.endsWith('.svg'));
+    // 2. JSON-LD Structured Data extraction
+    let ldBusinessName: string | null = null;
+    let ldOwnerName: string | null = null;
+    let ldRole: string | null = null;
+    let ldLogo: string | null = null;
+    const ldImages: string[] = [];
+    const ldPhones: string[] = [];
+    const ldEmails: string[] = [];
+    const ldSocials: string[] = [];
+    let ldAddress: string | null = null;
+    let ldCityState: string | null = null;
 
-    // Contacts
-    const waMatches = html.match(/(?:wa\.me|api\.whatsapp\.com\/send\?phone=)(\d+)/gi);
-    const phoneMatches = html.match(/(?:\(?\d{2}\)?\s*)?(?:9\d{4}[-\s]?\d{4}|\d{4}[-\s]?\d{4})/g);
-    const emailMatches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-    const cnpjMatches = html.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g);
-    const instaMatches = html.match(/instagram\.com\/([a-zA-Z0-9._-]+)/i);
+    const ldMatches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+    const inspectLdNode = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) {
+        node.forEach(inspectLdNode);
+        return;
+      }
+      if (Array.isArray(node['@graph'])) {
+        inspectLdNode(node['@graph']);
+      }
+      const nodeType = Array.isArray(node['@type']) ? node['@type'].join(' ') : String(node['@type'] || '');
+      const isOrg = /Organization|LocalBusiness|Medical|Dentist|Legal|Attorney|Store|Professional|Corporation|Health/i.test(nodeType);
+      const isPerson = /Person/i.test(nodeType);
 
-    // Text sample
-    const textSample = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 3000);
+      if (isOrg && typeof node.name === 'string' && !ldBusinessName) {
+        ldBusinessName = node.name.trim();
+      }
+      if (isPerson && typeof node.name === 'string' && !ldOwnerName) {
+        ldOwnerName = node.name.trim();
+        if (typeof node.jobTitle === 'string' && !ldRole) ldRole = node.jobTitle.trim();
+      }
+      if (node.founder) {
+        const f = Array.isArray(node.founder) ? node.founder[0] : node.founder;
+        if (typeof f === 'string' && !ldOwnerName) ldOwnerName = f.trim();
+        else if (f && typeof f.name === 'string' && !ldOwnerName) {
+          ldOwnerName = f.name.trim();
+          if (typeof f.jobTitle === 'string' && !ldRole) ldRole = f.jobTitle.trim();
+        }
+      }
+      if (typeof node.telephone === 'string') ldPhones.push(node.telephone.trim());
+      if (typeof node.email === 'string') ldEmails.push(node.email.trim());
+
+      const extractMediaUrl = (val: any): string | null => {
+        if (!val) return null;
+        if (typeof val === 'string') return resolveAbsoluteUrl(val, finalUrl);
+        if (typeof val === 'object' && typeof val.url === 'string') return resolveAbsoluteUrl(val.url, finalUrl);
+        if (typeof val === 'object' && typeof val.contentUrl === 'string') return resolveAbsoluteUrl(val.contentUrl, finalUrl);
+        return null;
+      };
+
+      const maybeLogo = extractMediaUrl(node.logo);
+      if (maybeLogo && !ldLogo) ldLogo = maybeLogo;
+
+      if (Array.isArray(node.image)) {
+        node.image.forEach((item: any) => {
+          const u = extractMediaUrl(item);
+          if (u) ldImages.push(u);
+        });
+      } else {
+        const u = extractMediaUrl(node.image);
+        if (u) ldImages.push(u);
+      }
+
+      if (node.address && typeof node.address === 'object' && !ldAddress) {
+        const addr = node.address;
+        const parts = [addr.streetAddress, addr.addressLocality, addr.addressRegion, addr.postalCode]
+          .filter((x) => typeof x === 'string' && x.trim().length > 0)
+          .map((x) => x.trim());
+        if (parts.length > 0) ldAddress = parts.join(', ');
+        if (addr.addressLocality) {
+          ldCityState = addr.addressRegion
+            ? `${addr.addressLocality.trim()} / ${addr.addressRegion.trim()}`
+            : addr.addressLocality.trim();
+        }
+      }
+
+      if (Array.isArray(node.sameAs)) {
+        node.sameAs.forEach((s: any) => {
+          if (typeof s === 'string') ldSocials.push(s);
+        });
+      }
+    };
+
+    for (const m of ldMatches) {
+      try {
+        const parsed = JSON.parse(m[1].trim());
+        inspectLdNode(parsed);
+      } catch {
+        // Ignore malformed JSON-LD blocks
+      }
+    }
+
+    // 3. Icon / Apple-touch-icon as logo fallback
+    let iconLogoUrl: string | null = null;
+    const linkTags = [...html.matchAll(/<link\b[^>]*>/gi)];
+    for (const m of linkTags) {
+      const tag = m[0];
+      const rel = (extractAttr(tag, 'rel') || '').toLowerCase();
+      const href = extractAttr(tag, 'href');
+      if (!href) continue;
+      if (rel.includes('apple-touch-icon')) {
+        iconLogoUrl = resolveAbsoluteUrl(href, finalUrl);
+        break;
+      }
+      if (rel.includes('icon') && !href.toLowerCase().endsWith('.ico') && !iconLogoUrl) {
+        iconLogoUrl = resolveAbsoluteUrl(href, finalUrl);
+      }
+    }
+
+    // 4. Real Image Extraction (<img ...>, <picture><source ...>, CSS background-image, og:image, JSON-LD)
+    const imageMap = new Map<string, ScrapedSiteImage>();
+    const pushImage = (
+      rawUrl: string | null | undefined,
+      alt: string,
+      contextHint: string,
+      isLogoCandidate = false,
+      isHeroCandidate = false
+    ) => {
+      const absUrl = resolveAbsoluteUrl(rawUrl, finalUrl);
+      if (!absUrl) return;
+      if (isTrackingOrJunkImage(absUrl, alt, contextHint)) return;
+      // Normalize dedup key without tracking query noise where obvious, but keep exact absUrl
+      const dedupKey = absUrl.split('#')[0];
+      if (imageMap.has(dedupKey)) return;
+
+      const classified = classifyScrapedImage(absUrl, alt, contextHint, isLogoCandidate, isHeroCandidate);
+      imageMap.set(dedupKey, {
+        id: `real_img_${imageMap.size + 1}`,
+        url: absUrl,
+        alt: alt || classified.label,
+        category: classified.category,
+        label: classified.label,
+        suggestedSection: classified.suggestedSection,
+        isReal: true,
+      });
+    };
+
+    if (ldLogo) {
+      pushImage(ldLogo, `${ldBusinessName || siteName || 'Marca'} Logotipo`, 'logo', true, false);
+    }
+
+    // Parse all <img> tags regardless of attribute order
+    const imgTags = [...html.matchAll(/<img\b[^>]*>/gi)];
+    let firstLargeNonLogoAssigned = false;
+    for (const m of imgTags) {
+      const tag = m[0];
+      const alt = extractAttr(tag, 'alt') || extractAttr(tag, 'title') || '';
+      const cls = `${extractAttr(tag, 'class') || ''} ${extractAttr(tag, 'id') || ''}`;
+      let src =
+        extractAttr(tag, 'data-src') ||
+        extractAttr(tag, 'data-lazy-src') ||
+        extractAttr(tag, 'data-original') ||
+        extractAttr(tag, 'src');
+
+      // Prefer srcset image if src is missing or looks like a lazy placeholder
+      const srcset = extractAttr(tag, 'data-srcset') || extractAttr(tag, 'srcset');
+      if ((!src || src.startsWith('data:')) && srcset) {
+        const firstSrcSet = srcset.split(',')[0]?.trim().split(/\s+/)[0];
+        if (firstSrcSet) src = firstSrcSet;
+      }
+
+      if (!src) continue;
+      const abs = resolveAbsoluteUrl(src, finalUrl);
+      if (!abs) continue;
+      if (isTrackingOrJunkImage(abs, alt, cls)) continue;
+
+      const looksLikeLogo = /\b(logo|logotipo|marca|brand)\b/i.test(`${abs} ${alt} ${cls}`);
+      const isHero = !looksLikeLogo && !firstLargeNonLogoAssigned && !/icon|avatar|flag|badge|selo/i.test(`${abs} ${cls}`);
+      if (isHero) firstLargeNonLogoAssigned = true;
+
+      pushImage(abs, alt, cls, looksLikeLogo, isHero);
+    }
+
+    // Parse <source srcset="..."> inside <picture>
+    const sourceTags = [...html.matchAll(/<source\b[^>]*>/gi)];
+    for (const m of sourceTags) {
+      const tag = m[0];
+      const srcset = extractAttr(tag, 'srcset') || extractAttr(tag, 'data-srcset');
+      if (!srcset) continue;
+      const firstUrl = srcset.split(',')[0]?.trim().split(/\s+/)[0];
+      if (firstUrl) pushImage(firstUrl, '', extractAttr(tag, 'media') || '', false, false);
+    }
+
+    // Parse CSS inline background-image: url(...)
+    const bgMatches = [...html.matchAll(/background(?:-image)?\s*:[^;]*url\(\s*(['"]?)([^'")]+)\1\s*\)/gi)];
+    for (const m of bgMatches) {
+      const bgUrl = m[2];
+      if (bgUrl) {
+        const looksHero = /hero|banner|bg|capa|slide/i.test(bgUrl);
+        pushImage(bgUrl, '', looksHero ? 'hero banner' : 'background', false, looksHero);
+      }
+    }
+
+    // Include JSON-LD images and og:image
+    for (const u of ldImages) {
+      pushImage(u, ldBusinessName || '', 'schema json-ld', false, !firstLargeNonLogoAssigned);
+    }
+    if (ogImage) {
+      pushImage(ogImage, ogTitle || title || 'Imagem Destaque (OpenGraph)', 'og:image hero', false, true);
+    }
+    // Include apple-touch-icon only if no logo was detected yet
+    const hasDetectedLogo = Array.from(imageMap.values()).some((img) => img.category === 'logo');
+    if (!hasDetectedLogo && iconLogoUrl) {
+      pushImage(iconLogoUrl, `Ícone / Logotipo ${ldBusinessName || siteName || ''}`.trim(), 'logo icon', true, false);
+    }
+
+    // Sort images so logo & hero & team appear first, limit to 18 real assets
+    const categoryOrder: Record<ScrapedSiteImage['category'], number> = {
+      logo: 0,
+      hero: 1,
+      team: 2,
+      services: 3,
+      facility: 4,
+      other: 5,
+    };
+    const images = Array.from(imageMap.values())
+      .sort((a, b) => categoryOrder[a.category] - categoryOrder[b.category])
+      .slice(0, 18);
+
+    const detectedLogoUrl = images.find((i) => i.category === 'logo')?.url || ldLogo || iconLogoUrl || null;
+
+    // 5. Headings & Services extraction
+    const stripTags = (s: string) =>
+      decodeHtmlEntities(s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    const h1 = h1Match ? stripTags(h1Match[1]) : null;
+
+    const headingMatches = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)];
+    const headings = Array.from(
+      new Set(
+        headingMatches
+          .map((m) => stripTags(m[1]))
+          .filter((t) => t.length >= 4 && t.length <= 140)
+      )
+    ).slice(0, 15);
+
+    const servicesDetected = headings
+      .filter((h) => h !== h1 && h.split(' ').length <= 10)
+      .slice(0, 8);
+
+    // 6. Clean body text
+    const textSample = decodeHtmlEntities(
+      html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+        .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, ' ')
+        .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    ).slice(0, 3500);
+
+    // 7. Contacts, Credentials, Address, Social Links
+    const waLinks = [
+      ...html.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^"']*?phone=|whatsapp\.com\/send\?[^"']*?phone=)(\d{10,15})/gi),
+    ];
+    const whatsapp = waLinks[0]?.[1] ? formatBrWhatsappOrPhone(waLinks[0][1]) : null;
+
+    const telLinks = [...html.matchAll(/href=["']tel:([^"']+)["']/gi)].map((m) =>
+      formatBrWhatsappOrPhone(m[1])
+    );
+    const bodyPhoneMatches =
+      textSample.match(/(?:\+?55\s*)?\(?\d{2}\)?\s*(?:9\d{4}|\d{4})[-\s]?\d{4}/g) || [];
+    const phones = Array.from(
+      new Set([...ldPhones, ...telLinks, ...bodyPhoneMatches].map((p) => p.trim()).filter(Boolean))
+    ).slice(0, 4);
+
+    const mailtoMatches = [...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map((m) => m[1].trim());
+    const rawEmailMatches = textSample.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const emails = Array.from(
+      new Set(
+        [...ldEmails, ...mailtoMatches, ...rawEmailMatches].filter(
+          (e) =>
+            e &&
+            !/\.(png|jpg|jpeg|webp|gif|svg)$/i.test(e) &&
+            !/@(?:example|sentry|wixpress|domain)\./i.test(e)
+        )
+      )
+    ).slice(0, 3);
+
+    const cnpjMatches = textSample.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g);
+    const cnpj = cnpjMatches?.[0] || null;
+
+    const credentialMatch = textSample.match(
+      /\b(?:OAB|CRM|CRO|CREA|CRECI|CAU|CRP|CRN|CRBM|CREFITO|COREN)[\/\s\-]*[A-Z]{2}\s*[-:]?\s*[\d.\-]+\b/i
+    );
+    const credential = credentialMatch ? credentialMatch[0].replace(/\s+/g, ' ').trim() : ldRole;
+
+    const allLinksText = `${html} ${ldSocials.join(' ')}`;
+    const instaMatch = allLinksText.match(/instagram\.com\/([a-zA-Z0-9._]{2,40})/i);
+    const instagram =
+      instaMatch?.[1] && !['p', 'reel', 'reels', 'stories', 'explore'].includes(instaMatch[1].toLowerCase())
+        ? `@${instaMatch[1].replace(/\/$/, '')}`
+        : null;
+
+    const fbMatch = allLinksText.match(/facebook\.com\/(?!sharer|share\.php|plugins|tr\b)([a-zA-Z0-9._\-]{2,60})/i);
+    const facebook = fbMatch?.[1] ? `https://facebook.com/${fbMatch[1]}` : null;
+
+    const liMatch = allLinksText.match(/linkedin\.com\/(?:company|in)\/([a-zA-Z0-9._\-]{2,60})/i);
+    const linkedin = liMatch?.[0] ? `https://www.${liMatch[0]}` : null;
+
+    const ytMatch = allLinksText.match(/youtube\.com\/(?:@|c\/|channel\/)([a-zA-Z0-9._\-]{2,60})/i);
+    const youtube = ytMatch?.[0] ? `https://www.${ytMatch[0]}` : null;
+
+    let address: string | null = ldAddress;
+    if (!address) {
+      const addrTagMatch = html.match(/<address[^>]*>([\s\S]*?)<\/address>/i);
+      if (addrTagMatch) {
+        const cleanedAddr = stripTags(addrTagMatch[1]);
+        if (cleanedAddr.length >= 8 && cleanedAddr.length <= 220) address = cleanedAddr;
+      }
+    }
+    if (!address) {
+      const brStreetMatch = textSample.match(
+        /(?:Rua|Av\.?|Avenida|Alameda|Travessa|Praça|Rodovia|Estrada)\s+[^•|\n]{6,95}?(?:CEP\s*:?\s*\d{5}-?\d{3}|\b[A-Z]{2}\b)/i
+      );
+      if (brStreetMatch) address = brStreetMatch[0].trim();
+    }
+
+    let cityState: string | null = ldCityState;
+    if (!cityState && address) {
+      const cityMatch = address.match(/([A-Za-zÀ-ÿ\s]{3,35})\s*[-\/]\s*(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/);
+      if (cityMatch) cityState = `${cityMatch[1].trim()} / ${cityMatch[2]}`;
+    }
+
+    // Guess cleanest businessName from JSON-LD, og:site_name or <title>
+    let businessName = ldBusinessName || siteName || null;
+    if (!businessName && title) {
+      const splitTitle = title.split(/\s*[|—–\-:]\s*/).map((s) => s.trim()).filter(Boolean);
+      if (splitTitle.length > 0) {
+        // Shortest brand-like segment or first segment
+        businessName = splitTitle[splitTitle.length - 1].length <= 36 && splitTitle.length > 1
+          ? splitTitle[splitTitle.length - 1]
+          : splitTitle[0];
+      }
+    }
 
     return {
+      finalUrl,
       title,
+      siteName,
       description,
+      h1,
+      headings,
       ogImage,
+      logoUrl: detectedLogoUrl,
       images,
-      whatsapp: waMatches?.[0] || null,
-      phones: phoneMatches?.slice(0, 3) || [],
-      emails: emailMatches?.slice(0, 2) || [],
-      cnpj: cnpjMatches?.[0] || null,
-      instagram: instaMatches?.[1] ? `@${instaMatches[1]}` : null,
+      businessName,
+      ownerName: ldOwnerName,
+      credential,
+      whatsapp,
+      phones,
+      emails,
+      address,
+      cityState,
+      cnpj,
+      instagram,
+      facebook,
+      linkedin,
+      youtube,
+      servicesDetected,
       textSample,
     };
   } catch {
@@ -385,38 +913,57 @@ async function scrapeSiteHtmlPreview(targetUrl: string) {
 
 // SITE AUDITOR: Audit Website Link based on MASTER SITE ENGINE 10.0
 export async function auditSiteWithGemini(
-  request: { url: string; niche?: string; targetObjective?: string }
+  request: { url: string; niche?: string; targetObjective?: string },
+  preScrapedData?: ScrapedSiteData | null
 ): Promise<any | null> {
   const ai = getGeminiClient();
   if (!ai) return null;
 
-  // Attempt live scrape preview for real data extraction
-  const liveScrape = await scrapeSiteHtmlPreview(request.url);
+  // Use pre-scraped data when available so /api/audit-site scrapes only once
+  const liveScrape = preScrapedData !== undefined ? preScrapedData : await scrapeSiteHtmlPreview(request.url);
 
   const prompt = `Você é o Auditor Independente e Engenheiro Chefe de Reengenharia Digital do MASTER SITE ENGINE 10.0 (QUALITY CONTROL, PERFORMANCE AUDIT & REENGINEERING SYSTEM).
 Sua base normativa OBRIGATÓRIA E SUPREMA é o MASTER SITE ENGINE 10.0.
 
-O usuário forneceu a seguinte URL para auditoria completa e geração do MEGA PROMPT DEFINITIVO DE RECRIAÇÃO:
-URL: "${request.url}"
+REGRA ABSOLUTA E INEGOCIÁVEL DE PRESERVAÇÃO DO CLIENTE:
+Sempre que sugerir melhorias ou gerar o Mega Prompt de Recriação para este site auditado:
+1. MANTENHA 100% DAS IMAGENS REAIS DO CLIENTE extraídas do link (mesmas URLs exatas de logotipo, hero, fotos da equipe/profissional, fotos do espaço e serviços). É PROIBIDO substituir fotos reais extraídas por imagens genéricas de bancos de imagem (Unsplash/Pexels) ou inventar URLs fictícias.
+2. MANTENHA 100% DAS INFORMAÇÕES REAIS DO CLIENTE encontradas no site (nome da marca/empresa, responsável técnico, OAB/CRM/CRO/CREA, WhatsApp, telefone, e-mail, endereço completo, cidade/UF, CNPJ, Instagram/redes sociais, serviços reais e biografia/história). Se algum dado não foi detectado no HTML, indique claramente "Não identificado no HTML — confirmar com cliente" ao invés de inventar dados fictícios.
+3. TODAS AS MELHORIAS SUGERIDAS ("recommendedImprovements") devem otimizar estrutura, headline, CTA, conversão, SEO e velocidade (como converter as fotos atuais para WebP/AVIF mantendo EXATAMENTE as mesmas imagens do cliente e aplicando os contatos e textos reais do cliente).
+4. O "reengineeringMegaPrompt" DEVE conter uma seção explícita listando todas as URLs exatas de imagens do cliente e todos os dados cadastrais reais a preservar integralmente.
+
+URL para auditoria: "${request.url}"
+${liveScrape?.finalUrl ? `URL final após redirecionamentos: "${liveScrape.finalUrl}"` : ''}
 Nicho / Segmento: "${request.niche || 'Auto-detectar pelo link e conteúdo'}"
 Objetivo: "${request.targetObjective || 'Conversão de Leads e Agendamentos'}"
 
-${liveScrape ? `DADOS RASTREADOS DIRETAMENTE DO SITE (AO VIVO):
-- Título da Página: ${liveScrape.title || 'N/A'}
+${liveScrape ? `DADOS E ATIVOS REAIS RASTREADOS DIRETAMENTE DO SITE (PRESERVAR INTEGRALMENTE):
+- Nome da Marca / Empresa Detectado: ${liveScrape.businessName || 'N/A'}
+- Título da Página (<title>): ${liveScrape.title || 'N/A'}
+- H1 Principal: ${liveScrape.h1 || 'N/A'}
+- Principais Títulos / Seções Detectadas: ${JSON.stringify(liveScrape.headings)}
+- Serviços / Produtos Identificados: ${JSON.stringify(liveScrape.servicesDetected)}
 - Meta Descrição: ${liveScrape.description || 'N/A'}
-- Imagem OpenGraph (og:image): ${liveScrape.ogImage || 'N/A'}
-- Imagens Encontradas no HTML: ${JSON.stringify(liveScrape.images.slice(0, 5))}
-- WhatsApp Detectado: ${liveScrape.whatsapp || 'N/A'}
+- Responsável / Fundador Detectado: ${liveScrape.ownerName || 'N/A'}
+- Registro / Credencial: ${liveScrape.credential || 'N/A'}
+- WhatsApp Oficial: ${liveScrape.whatsapp || 'N/A'}
 - Telefones: ${liveScrape.phones.join(', ') || 'N/A'}
 - E-mails: ${liveScrape.emails.join(', ') || 'N/A'}
+- Endereço: ${liveScrape.address || 'N/A'}
+- Cidade / UF: ${liveScrape.cityState || 'N/A'}
 - CNPJ: ${liveScrape.cnpj || 'N/A'}
-- Instagram: ${liveScrape.instagram || 'N/A'}
-- Trecho de Texto Real da Página: ${liveScrape.textSample.slice(0, 1200)}
-` : ''}
+- Redes Sociais: Instagram=${liveScrape.instagram || 'N/A'}, Facebook=${liveScrape.facebook || 'N/A'}, LinkedIn=${liveScrape.linkedin || 'N/A'}
+- Logotipo Detectado: ${liveScrape.logoUrl || 'N/A'}
+- Imagem OpenGraph: ${liveScrape.ogImage || 'N/A'}
+- IMAGENS REAIS DO CLIENTE ENCONTRADAS NO HTML (${liveScrape.images.length} — PRESERVAR URLs EXATAS):
+${JSON.stringify(liveScrape.images.slice(0, 15), null, 2)}
+- Conteúdo Textual Real da Página:
+${liveScrape.textSample.slice(0, 2200)}
+` : 'Obs: Não foi possível baixar o HTML ao vivo do servidor alvo (bloqueio/timeout). Assinale claramente quais campos dependem de confirmação com o cliente e não invente URLs de fotos como se fossem reais.'}
 
 EXECUTE A AUDITORIA E RETORNE UM JSON VÁLIDO contendo:
 1. "domain": nome do domínio limpo (ex: "clinicaodonto.com.br")
-2. "primaryNicheDetected": nicho identificado
+2. "primaryNicheDetected": nicho identificado com base no conteúdo real
 3. "overallScore": número de 0 a 100 calculado pela soma ponderada oficial dos 8 pilares:
    - Design e identidade visual (20%)
    - SEO e posicionamento orgânico (20%)
@@ -428,10 +975,10 @@ EXECUTE A AUDITORIA E RETORNE UM JSON VÁLIDO contendo:
    - Qualidade técnica e código (5%)
 4. "scoreLabel": classificação oficial (95-100: "Excelência Internacional", 90-94: "Excelente", 80-89: "Muito Bom", 70-79: "Regular", 50-69: "Insatisfatório", 0-49: "Crítico")
 5. "approvalStatus": "APROVADO" (>=90 e sem bloqueio), "APROVADO COM MELHORIAS" (80-89), "EXIGE CORREÇÕES" (70-79), ou "REPROVADO" (<70 ou com bloqueio P0)
-6. "executiveSummary": resumo executivo rigoroso de 3-4 frases em tom de auditor independente
-7. "ownerInfo": objeto com dados extraídos { businessName, ownerOrLeaderName, roleOrCredential, whatsapp, phone, email, fullAddress, cityState, cnpj, instagram, bioOrAboutSummary }
-8. "extractedImages": array com os ativos visuais reais detectados ou sugeridos para o novo projeto
-9. "criticalBlockers": array com bloqueadores críticos encontrados (ex: formulário quebrado, lentidão extrema mobile, ausência de UVP, promessas falsas) com { id, title, evidence, impact, correction, priority: 'P0'|'P1' }
+6. "executiveSummary": resumo executivo rigoroso de 3-4 frases em tom de auditor independente mencionando os pontos reais encontrados
+7. "ownerInfo": objeto preservando fielmente os dados reais extraídos { businessName, ownerOrLeaderName, roleOrCredential, whatsapp, phone, email, fullAddress, cityState, cnpj, instagram, facebook, linkedin, youtube, bioOrAboutSummary }
+8. "extractedImages": array preservando EXATAMENTE as imagens reais rastreadas acima (cada objeto com { id, url, alt, category, label, suggestedSection, isReal: true }). NÃO substitua por URLs de Unsplash/Pexels!
+9. "criticalBlockers": array com bloqueadores críticos reais encontrados { id, title, evidence, impact, correction, priority: 'P0'|'P1' }
 10. "categories10": objeto com as 8 categorias oficiais do Master Site Engine 10.0 contendo { name, score, weight, status, description, masterPromptRule, currentFlaws, recommendations } para:
     - design (peso 20)
     - seo (peso 20)
@@ -442,20 +989,13 @@ EXECUTE A AUDITORIA E RETORNE UM JSON VÁLIDO contendo:
     - securityCompliance (peso 7)
     - technicalQuality (peso 5)
 DIRETRIZ SUPREMA DE VELOCIDADE (OBRIGATÓRIO NOTA > 9.5 NO GOOGLE PAGESPEED INSIGHTS):
-Todo site e landing page DEVE ser concebido para ser ultrarrápido e atingir nota mínima de nove e meio (>= 9.5 / 95pts) no Google PageSpeed Insights tanto no Mobile quanto no Desktop.
-- LCP (Largest Contentful Paint) < 1.8s
-- CLS (Cumulative Layout Shift) < 0.05
-- INP / FID < 100ms
-- FCP < 1.0s
-- Imagens em WebP/AVIF (<150KB fundos, <80KB destaque, largura máxima 1920px desktop e 800px mobile)
-- Vídeos em loop de 5-10s no servidor ou fachada lazy para YouTube/Vimeo.
-Na categoria "performance" e nos bloqueadores, avalie estritamente se o site atende ao critério de velocidade > 9.5.
+Todo site e landing page DEVE atingir nota >= 9.5 (95+) no Google PageSpeed Insights (Mobile e Desktop), com LCP < 1.8s, CLS < 0.05, INP < 100ms, FCP < 1.0s, convertendo as imagens REAIS do cliente para WebP/AVIF (<150KB fundos, <80KB destaque) SEM substituí-las.
 
-11. "recommendedImprovements": array de 6 objetos com ações de melhoria concretas prontas para copiar
-12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 autossuficiente e completo para colar em ferramentas com IA (Lovable, Bolt, Cursor ou Studio), garantindo a meta inegociável de 9.5+ no PageSpeed Insights.
+11. "recommendedImprovements": array de 6 objetos { id, title, category, impact, masterPromptReference, currentIssue, improvedProposal, copyableContent } onde CADA melhoria usa os dados reais do cliente (nome, cidade, WhatsApp, serviços reais) e referencia a preservação das fotos reais extraídas.
+12. "reengineeringMegaPrompt": string com o MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA 10.0 autossuficiente e completo, contendo seção explícita com TODAS as URLs exatas das imagens do cliente e TODOS os dados reais do cliente para preservação obrigatória, mais meta 9.5+ PageSpeed.
 `;
 
-  const modelsToTry = ['gemini-3.8-flash'];
+  const modelsToTry = ['gemini-4-hydrogen', 'gemini-3.8-flash'];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -467,7 +1007,47 @@ Na categoria "performance" e nos bloqueadores, avalie estritamente se o site ate
       });
       const text = response.text;
       if (text) {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        // Server-side safeguard: never lose real scraped images or real scraped contacts
+        if (liveScrape) {
+          if (liveScrape.images.length > 0) {
+            const scrapedByUrl = new Map(liveScrape.images.map((img) => [img.url, img]));
+            const geminiImgs: any[] = Array.isArray(parsed.extractedImages) ? parsed.extractedImages : [];
+            const sanitizedGemini = geminiImgs.filter(
+              (g) => typeof g?.url === 'string' && scrapedByUrl.has(g.url)
+            );
+            const seenUrls = new Set(sanitizedGemini.map((g) => g.url));
+            const mergedImages = [
+              ...sanitizedGemini.map((g) => ({ ...g, isReal: true })),
+              ...liveScrape.images.filter((s) => !seenUrls.has(s.url)),
+            ];
+            parsed.extractedImages = mergedImages;
+          }
+          parsed.ownerInfo = {
+            ...(parsed.ownerInfo || {}),
+            businessName: parsed.ownerInfo?.businessName || liveScrape.businessName || '',
+            ownerOrLeaderName: parsed.ownerInfo?.ownerOrLeaderName || liveScrape.ownerName || 'Não identificado no HTML — confirmar com cliente',
+            roleOrCredential: parsed.ownerInfo?.roleOrCredential || liveScrape.credential || 'Confirmar com cliente',
+            whatsapp: liveScrape.whatsapp || parsed.ownerInfo?.whatsapp || 'Não identificado no HTML — confirmar com cliente',
+            phone: liveScrape.phones[0] || parsed.ownerInfo?.phone || 'Não identificado no HTML — confirmar com cliente',
+            email: liveScrape.emails[0] || parsed.ownerInfo?.email || 'Não identificado no HTML — confirmar com cliente',
+            fullAddress: liveScrape.address || parsed.ownerInfo?.fullAddress || 'Não identificado no HTML — confirmar com cliente',
+            cityState: liveScrape.cityState || parsed.ownerInfo?.cityState || 'Confirmar cidade/UF',
+            cnpj: liveScrape.cnpj || parsed.ownerInfo?.cnpj || undefined,
+            instagram: liveScrape.instagram || parsed.ownerInfo?.instagram || undefined,
+            facebook: liveScrape.facebook || parsed.ownerInfo?.facebook || undefined,
+            linkedin: liveScrape.linkedin || parsed.ownerInfo?.linkedin || undefined,
+            youtube: liveScrape.youtube || parsed.ownerInfo?.youtube || undefined,
+          };
+          parsed.liveScrapedUsed = true;
+          parsed.preservedClientAssetCount = liveScrape.images.length;
+          parsed.siteTitle = liveScrape.title || undefined;
+          parsed.metaDescription = liveScrape.description || undefined;
+          parsed.h1Text = liveScrape.h1 || undefined;
+          parsed.extractedHeadings = liveScrape.headings;
+          parsed.extractedServices = liveScrape.servicesDetected;
+        }
+        return parsed;
       }
     } catch (err: any) {
       console.warn(`[Site Audit AI] Modelo ${modelName} falhou: ${err.message?.slice(0, 80)}`);

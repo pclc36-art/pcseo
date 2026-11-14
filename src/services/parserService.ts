@@ -1,4 +1,4 @@
-import { ProjectExtractedData, ProjectType } from '../types';
+import { ImageAsset, ImageCategory, ProjectExtractedData, ProjectType } from '../types';
 import { generatePhotographicDirection } from './imageService';
 
 export function parseQuestionnaireHeuristic(
@@ -17,24 +17,41 @@ export function parseQuestionnaireHeuristic(
       const line = lines[i];
       for (const pat of patterns) {
         if (pat.test(line)) {
-          // Check if this is a question line ending with '?' or followed by RESPOSTA:
+          // Check if this is a direct "Label: Value" line (not a question ending with '?')
           const hasQuestionMark = line.includes('?');
-          if (!hasQuestionMark) {
+          if (!hasQuestionMark && !/^\d+[\.\)]\s/.test(line)) {
             const split = line.split(/[:\-–—]\s*/);
             if (split.length > 1 && split.slice(1).join(' ').trim().length > 1) {
               return split.slice(1).join(' ').trim();
             }
           }
-          // Otherwise look at following lines until next question/section header
+          // Otherwise collect following lines until next question or section header
           const collected: string[] = [];
+          let inRespostaBlock = false;
           let j = i + 1;
           while (j < lines.length) {
             const nextLine = lines[j];
+            const isRespostaPrefix = /^RESPOSTA\s*:/i.test(nextLine);
+            if (isRespostaPrefix) {
+              inRespostaBlock = true;
+            }
             const cleanNext = nextLine.replace(/^RESPOSTA\s*:\s*/i, '').trim();
-            if (/^---/.test(nextLine) || /^\d+[\.\)]\s/.test(nextLine)) {
+
+            if (/^---/.test(nextLine)) {
               break;
             }
-            if (!/^RESPOSTA\s*:/i.test(nextLine) && /^[a-zA-ZÀ-ÿ\s]{3,28}:/.test(nextLine) && !/^[\-\*•]/.test(nextLine)) {
+            // Stop at a new numbered question line (ends with '?' or starts a new question outside RESPOSTA)
+            if (!isRespostaPrefix && /^\d+[\.\)]\s/.test(nextLine)) {
+              if (!inRespostaBlock || /\?\s*$/.test(nextLine)) {
+                break;
+              }
+            }
+            if (
+              !inRespostaBlock &&
+              !isRespostaPrefix &&
+              /^[a-zA-ZÀ-ÿ\s\/]{3,32}:/.test(nextLine) &&
+              !/^[\-\*•]/.test(nextLine)
+            ) {
               break;
             }
             if (cleanNext && cleanNext !== '[Não informado pelo cliente]') {
@@ -55,8 +72,8 @@ export function parseQuestionnaireHeuristic(
   let extractedClient = clientNameHint?.trim() || '';
   if (!extractedClient) {
     const nameMatch = findAnswerTo([
-      /empresa\s*\/\s*marca/i,
-      /nome(?:\s+exato|\s+comercial|\s+do\s+profissional|\s+da\s+marca|\s+da\s+empresa|\s+do\s+cliente)?/i,
+      /(?:empresa|escritório|consultório|estabelecimento)\s*\/\s*(?:marca|profissional|clínica)/i,
+      /nome(?:\s+exato|\s+comercial|\s+do\s+profissional|\s+do\s+escritório|\s+da\s+marca|\s+da\s+empresa|\s+do\s+cliente)?/i,
       /quem\s+(?:é|somos)/i,
     ]);
     if (nameMatch) {
@@ -103,7 +120,7 @@ export function parseQuestionnaireHeuristic(
 
   // 3. Services
   const servicesRaw = findAnswerTo([
-    /principais\s+serviços|causas\s+ou\s+serviços|serviços(?:\s+oferecidos)?|o\s+que\s+oferece/i,
+    /principais\s+serviços,\s*tratamentos\s+ou\s+produtos|causas\s+ou\s+serviços\s+jurídicos|principais\s+serviços|serviços(?:\s+oferecidos)?|o\s+que\s+oferece/i,
     /produtos|soluções|cardápio/i,
   ]);
   const services: string[] = [];
@@ -338,6 +355,109 @@ export function parseQuestionnaireHeuristic(
     hostingTarget = 'cloudflare_pages';
   }
 
+  // 21. Extended Conversion & Content Fields (Hero, Pricing, Process, Story, FAQ, Hours, Media, SEO)
+  const heroHeadline = findAnswerTo([
+    /em\s+uma\s+frase\s+simples|o\s+que\s+você\s+faz\s+de\s+melhor|principal\s+segurança\s+ou\s+solução|promessa\s+principal|headline|título\s+principal|frase\s+curta\s+e\s+direta/i,
+  ]);
+
+  const heroSubheadline = findAnswerTo([
+    /subheadline|subtítulo|complemento|texto\s+exato\s+do\s+botão|selo\s+de\s+confiança/i,
+  ]);
+
+  const ctaMatch = text.match(/(?:ação\s+principal(?:\s+desejada\s+no\s+site|\s+nos\s+botões)?|texto\s+do\s+botão|botão(?:\s+principal)?(?:\s*\(cta\))?|cta\s+principal)\s*[:\-–—]\s*["“]?([^"\n”]+)["”]?/i);
+  const heroCtaText = ctaMatch ? ctaMatch[1].trim() : '';
+
+  const pricingAndPayment = findAnswerTo([
+    /valores,\s*planos|política\s+de\s+preços|condições\s+comerciais|formas\s+de\s+pagamento|honorários|convênios/i,
+  ]);
+
+  const processRaw = findAnswerTo([
+    /passo\s+a\s+passo|como\s+funciona\s+na\s+prática|etapas\s+do\s+atendimento/i,
+  ]);
+  const processSteps = processRaw
+    ? processRaw
+        .split(/\n|(?:\d+[\.\)]\s*)|(?:Passo\s+\d+[:\s\-]*)|(?:[;•])/)
+        .map((s) => s.replace(/^[0-9\.\-\*•\s]+/, '').trim())
+        .filter((s) => s.length > 4)
+    : [];
+
+  const brandStory = findAnswerTo([
+    /história\s+(?:da\s+marca|resumida)|trajetória|quem\s+está\s+por\s+trás|formação\s+técnica/i,
+  ]);
+
+  const guaranteesAndPolicies = findAnswerTo([
+    /garantias|certificações|suporte\s+pós|compromissos?\s+(?:de\s+qualidade|com\s+(?:o\s+cliente|a\s+comunicação)|de\s+atendimento)|pós-venda|carro-chefe\s+e\s+porta\s+de\s+entrada/i,
+  ]);
+
+  const openingHours = findAnswerTo([
+    /horários\s+(?:exatos\s+)?de\s+funcionamento|sla\s+de\s+resposta|dias\s+e\s+horários/i,
+  ]);
+
+  const faqRaw = findAnswerTo([
+    /dúvidas(?:\s+mais)?\s+frequentes|dúvidas\s+que\s+(?:os\s+)?(?:clientes|pacientes|alunos|hóspedes)|perguntas\s+frequentes|\(faq\)/i,
+  ]);
+  const faqItems = faqRaw
+    ? faqRaw
+        .split(/\n|(?=\d+[\.\)]\s+[^0-9])/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 6)
+    : [];
+
+  const availableMediaAssets = findAnswerTo([
+    /ativos\s+de\s+imagens\s+do\s+site|logotipo\s+em\s+boa\s+qualidade|fotos\s+ou\s+vídeos\s+reais|fotos\s+profissionais\s+suas|fotos\s+da\s+sala|retrato\s+profissional|fotos\s+do\s+escritório|logotipo\s+em\s+alta|logotipo,\s*fotos\s+reais|fotos\s+e\s+vídeos|materiais\s+visuais/i,
+  ]);
+
+  // Parse audited site real image URLs (- [HERO] Label | Seção: ...: https://...)
+  const validCategories = new Set<ImageCategory>([
+    'logo',
+    'hero',
+    'team',
+    'services',
+    'facility',
+    'testimonials',
+    'product',
+    'other',
+  ]);
+  const extractedImageAssets: ImageAsset[] = [];
+  const seenImageUrls = new Set<string>();
+  const auditImgRegex = /^-\s*\[([A-Z]+)\]\s*([^:\n]+?)(?:\s*\|\s*Seção:\s*([^:\n]+?))?:\s*(https?:\/\/\S+)/i;
+  for (const line of lines) {
+    const m = line.match(auditImgRegex);
+    if (m) {
+      const rawCat = m[1].toLowerCase() as ImageCategory;
+      const category: ImageCategory = validCategories.has(rawCat) ? rawCat : 'other';
+      const label = m[2].trim();
+      const sectionTarget = (m[3] || 'Seção correspondente do site').trim();
+      const url = m[4].trim();
+      if (!seenImageUrls.has(url)) {
+        seenImageUrls.add(url);
+        extractedImageAssets.push({
+          id: `audit_img_${extractedImageAssets.length + 1}`,
+          name: label,
+          category,
+          url,
+          dataUrl: url,
+          altText: `${label} — ${extractedClient || 'Cliente'}`,
+          sectionTarget,
+          isRealClientPhoto: true,
+        });
+      }
+    }
+  }
+
+  const seoRaw = findAnswerTo([
+    /cidades\s+ou\s+bairros\s+(?:que\s+você\s+|onde\s+)atend|regiões\s+e\s+cidades\s+atendidas|palavras-chave|bairros,\s*cidades|área\s+de\s+cobertura/i,
+  ]);
+  const seoKeywords = seoRaw
+    ? seoRaw
+        .split(/[,;\n|]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 2 && s.length < 80)
+    : [];
+
+  // Preserve clean full Q&A context (truncated safely if huge) so bespoke niche answers are never lost
+  const rawBriefingSummary = text.length > 150 ? text.slice(0, 12000).trim() : '';
+
   // Photographic Direction generation
   const photographicDirection = generatePhotographicDirection(
     niche || 'Geral',
@@ -366,12 +486,12 @@ export function parseQuestionnaireHeuristic(
     audiencePainPoints: audiencePainPoints.length > 0 ? audiencePainPoints : ['Não informado'],
     benefitsAndTransformation: benefitsAndTransformation.length > 0 ? benefitsAndTransformation : ['Não informado'],
     visualIdentity: {
-      logoAvailable: hasLogo,
+      logoAvailable: hasLogo || extractedImageAssets.some((i) => i.category === 'logo'),
       primaryColors,
       aestheticStyle: visualRaw || 'Não informado',
       references,
     },
-    imageAssets: [],
+    imageAssets: extractedImageAssets,
     photographicDirection,
     preferencesEsthetic: visualRaw || 'Não informado',
     references,
@@ -385,6 +505,18 @@ export function parseQuestionnaireHeuristic(
     technicalRequirements,
     hostingTarget,
     preferredFramework: 'Astro (Astro-First)',
+    heroHeadline: heroHeadline || undefined,
+    heroSubheadline: heroSubheadline || undefined,
+    heroCtaText: heroCtaText || undefined,
+    pricingAndPayment: pricingAndPayment || undefined,
+    processSteps: processSteps.length > 0 ? processSteps : undefined,
+    brandStory: brandStory || undefined,
+    guaranteesAndPolicies: guaranteesAndPolicies || undefined,
+    openingHours: openingHours || undefined,
+    faqItems: faqItems.length > 0 ? faqItems : undefined,
+    availableMediaAssets: availableMediaAssets || undefined,
+    seoKeywords: seoKeywords.length > 0 ? seoKeywords : undefined,
+    rawBriefingSummary: rawBriefingSummary || undefined,
     missingFields,
     contradictions,
     additionalNotes: additionalNotes || '',

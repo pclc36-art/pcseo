@@ -95,6 +95,7 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
   const [isConfirmClearAll, setIsConfirmClearAll] = useState<boolean>(false);
   const [pageSpeedStrategy, setPageSpeedStrategy] = useState<'mobile' | 'desktop'>('mobile');
   const [isLoadingPageSpeed, setIsLoadingPageSpeed] = useState<boolean>(false);
+  const [failedPreviewIds, setFailedPreviewIds] = useState<Record<string, boolean>>({});
 
   // Re-run PageSpeed on demand (e.g. when user toggles Mobile / Desktop)
   const handleFetchPageSpeed = async (strategy: 'mobile' | 'desktop') => {
@@ -454,6 +455,15 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/40">
                     {activeReport.primaryNicheDetected}
                   </span>
+                  {activeReport.liveScrapedUsed ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700/50">
+                      ✓ Fotos & Dados Reais Mantidos ({activeReport.extractedImages?.filter(i => i.isReal).length || 0} imagens)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-700/50">
+                      Leitura Direta Bloqueada — Confirmar Dados Reais
+                    </span>
+                  )}
                   <span className="text-[10px] text-slate-400 font-mono">
                     URL: {activeReport.url}
                   </span>
@@ -541,26 +551,33 @@ export const SiteAuditorView: React.FC<SiteAuditorViewProps> = ({
                     targetPlatform: 'code_generator',
                     overallScore: activeReport.overallScore,
                     suggestedBriefing: `Site diagnosticado: ${activeReport.url}
-Empresa / Razão: ${activeReport.ownerInfo?.businessName || activeReport.domain}
+REGRA OBRIGATÓRIA DO PROJETO: Manter integralmente todas as imagens reais (URLs abaixo) e informações oficiais do cliente extraídas do link auditado.
+
+Empresa / Marca: ${activeReport.ownerInfo?.businessName || activeReport.domain}
 Proprietário / Líder: ${activeReport.ownerInfo?.ownerOrLeaderName || 'A confirmar'} (${activeReport.ownerInfo?.roleOrCredential || 'Responsável'})
+Nicho / Especialidade: ${activeReport.primaryNicheDetected}
 WhatsApp Oficial: ${activeReport.ownerInfo?.whatsapp || 'A confirmar'}
 Telefone: ${activeReport.ownerInfo?.phone || 'A confirmar'}
 E-mail: ${activeReport.ownerInfo?.email || 'A confirmar'}
 Endereço: ${activeReport.ownerInfo?.fullAddress || 'Atendimento digital'}
+Cidade / Região: ${activeReport.ownerInfo?.cityState || 'Confirmar com cliente'}
 CNPJ: ${activeReport.ownerInfo?.cnpj || 'Não informado'}
-Instagram / Redes: ${activeReport.ownerInfo?.instagram || 'Não informado'}
-Bio / Sobre: ${activeReport.ownerInfo?.bioOrAboutSummary || 'Atuação de alto padrão'}
+Redes Sociais: ${[activeReport.ownerInfo?.instagram, activeReport.ownerInfo?.facebook, activeReport.ownerInfo?.linkedin, activeReport.ownerInfo?.youtube].filter(Boolean).join(' | ') || 'Não informado'}
+História / Bio: ${activeReport.ownerInfo?.bioOrAboutSummary || 'Atuação de alto padrão'}
+${activeReport.extractedServices && activeReport.extractedServices.length > 0 ? `Principais Serviços Identificados no Site:\n${activeReport.extractedServices.map(s => `- ${s}`).join('\n')}` : ''}
 
 Ativos de Imagens do Site:
-${(activeReport.extractedImages || []).map(img => `- [${img.category.toUpperCase()}] ${img.label}: ${img.url}`).join('\n')}
+${(activeReport.extractedImages || []).length > 0
+  ? (activeReport.extractedImages || []).map(img => `- [${img.category.toUpperCase()}] ${img.label} | Seção: ${img.suggestedSection}: ${img.url}`).join('\n')
+  : '- Nenhuma URL automática extraída — coletar logotipo e fotos reais diretamente com o cliente.'}
 
 Pontuação Geral Atual: ${activeReport.overallScore}/100
 Gargalos Críticos Identificados:
 ${activeReport.criticalBottlenecks.map((b: string) => `- ${b}`).join('\n')}
 
-Melhorias Estratégicas Recomendadas (Prompt Mestre 2.1):
+Melhorias Estratégicas Recomendadas (Master Site Engine 10.0 — Mantendo Fotos e Dados do Cliente):
 ${activeReport.recommendedImprovements.map((imp: SiteImprovementAction) => `[${imp.category.toUpperCase()}] ${imp.title}\n${imp.improvedProposal}\nConteúdo:\n${imp.copyableContent}`).join('\n\n')}`,
-                    notes: `Site atual obteve nota ${activeReport.overallScore}/100. Diagnosticado com base no Master Prompt 2.1. Proprietário: ${activeReport.ownerInfo?.ownerOrLeaderName || 'Confirmar'}.`,
+                    notes: `Auditoria de ${activeReport.url} (${activeReport.overallScore}/100). Manter integralmente imagens reais e dados oficiais de ${activeReport.ownerInfo?.businessName || activeReport.domain}.`,
                     ownerInfo: activeReport.ownerInfo,
                     extractedImages: activeReport.extractedImages,
                   })}
@@ -1025,15 +1042,19 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <a
-                      href={`https://wa.me/55${activeReport.ownerInfo.whatsapp.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Abrir</span>
-                    </a>
+                    {activeReport.ownerInfo.whatsapp.replace(/\D/g, '').length >= 8 ? (
+                      <a
+                        href={`https://wa.me/${activeReport.ownerInfo.whatsapp.replace(/\D/g, '').startsWith('55') ? activeReport.ownerInfo.whatsapp.replace(/\D/g, '') : `55${activeReport.ownerInfo.whatsapp.replace(/\D/g, '')}`}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Abrir</span>
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-slate-500">Confirmar número</span>
+                    )}
                     <button
                       type="button"
                       onClick={() => copyToClipboard(activeReport.ownerInfo.whatsapp, 'owner_wa', 'WhatsApp')}
@@ -1077,13 +1098,17 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <a
-                      href={`mailto:${activeReport.ownerInfo.email}`}
-                      className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Mensagem</span>
-                    </a>
+                    {activeReport.ownerInfo.email.includes('@') ? (
+                      <a
+                        href={`mailto:${activeReport.ownerInfo.email}`}
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Mensagem</span>
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-slate-500">Confirmar e-mail</span>
+                    )}
                     <button
                       type="button"
                       onClick={() => copyToClipboard(activeReport.ownerInfo.email, 'owner_email', 'E-mail')}
@@ -1140,7 +1165,32 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                             <strong>Instagram:</strong> {activeReport.ownerInfo.instagram}
                           </span>
                         )}
+                        {activeReport.ownerInfo.facebook && (
+                          <span className="text-xs text-indigo-300">
+                            <strong>Facebook:</strong> {activeReport.ownerInfo.facebook}
+                          </span>
+                        )}
+                        {activeReport.ownerInfo.linkedin && (
+                          <span className="text-xs text-indigo-300">
+                            <strong>LinkedIn:</strong> {activeReport.ownerInfo.linkedin}
+                          </span>
+                        )}
+                        {activeReport.ownerInfo.youtube && (
+                          <span className="text-xs text-indigo-300">
+                            <strong>YouTube:</strong> {activeReport.ownerInfo.youtube}
+                          </span>
+                        )}
                       </div>
+                      {activeReport.extractedServices && activeReport.extractedServices.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Serviços / Tópicos do Site:</span>
+                          {activeReport.extractedServices.slice(0, 6).map((srv, idx) => (
+                            <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-cyan-200">
+                              {srv}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <p className="text-[11px] text-slate-400 italic">
                         "{activeReport.ownerInfo.bioOrAboutSummary}"
                       </p>
@@ -1161,30 +1211,36 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
           )}
 
           {/* SECTION: EXTRACTED SITE IMAGES & VISUAL ASSETS */}
-          {activeReport.extractedImages && activeReport.extractedImages.length > 0 && (
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 w-full min-w-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3 w-full min-w-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
-                      <ImageIcon className="w-4 h-4" />
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 w-full min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3 w-full min-w-0">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
+                    <ImageIcon className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-sm sm:text-base font-extrabold text-white">
+                    Imagens Reais do Cliente Extraídas do Site ({activeReport.extractedImages?.length || 0})
+                  </h3>
+                  {activeReport.extractedImages && activeReport.extractedImages.some(i => i.isReal) && (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Preservação Obrigatória
                     </span>
-                    <h3 className="text-sm sm:text-base font-extrabold text-white">
-                      Imagens Principais & Ativos Visuais Extraídos ({activeReport.extractedImages.length})
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Fotos do proprietário, logotipo, hero banner e vitrines prontas para reaproveitar no design Astro-First.
-                  </p>
+                  )}
                 </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Logotipo, banner principal, fotos da equipe/espaço e vitrine mantidos exatamente com as URLs originais do cliente para usar nas melhorias.
+                </p>
+              </div>
 
+              {activeReport.extractedImages && activeReport.extractedImages.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
                     const mdImages = activeReport.extractedImages.map(img => `### ${img.label} (${img.category.toUpperCase()})
+• Origem: ${img.isReal ? 'Original do site do cliente' : 'Referência sugerida'}
 • Seção Recomendada: ${img.suggestedSection}
 • Alt-Text: "${img.alt}"
-• Link Direto: ${img.url}`).join('\n\n');
+• URL Direta: ${img.url}`).join('\n\n');
                     copyToClipboard(mdImages, 'all_images_links', 'Lista de Imagens em Markdown');
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer self-start sm:self-auto shrink-0 ${
@@ -1196,69 +1252,104 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                   {isCopied('all_images_links') ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{isCopied('all_images_links') ? '✓ Links Copiados!' : 'Copiar Todos os Links de Imagens'}</span>
                 </button>
-              </div>
+              )}
+            </div>
 
-              {/* Images Gallery Grid */}
+            {activeReport.extractedImages && activeReport.extractedImages.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full min-w-0">
-                {activeReport.extractedImages.map((img) => (
-                  <div
-                    key={img.id}
-                    className="group rounded-2xl bg-slate-950/90 border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-cyan-500/40 transition-all min-w-0"
-                  >
-                    <div className="relative aspect-video w-full bg-slate-900 overflow-hidden">
-                      <img
-                        src={img.url}
-                        alt={img.alt}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
-                        }}
-                      />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/80 backdrop-blur-md text-cyan-300 border border-cyan-500/30 uppercase">
-                        {img.category}
-                      </span>
-                    </div>
-
-                    <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between min-w-0">
-                      <div className="space-y-1 min-w-0">
-                        <h4 className="text-xs font-bold text-white truncate" title={img.label}>
-                          {img.label}
-                        </h4>
-                        <p className="text-[10px] text-slate-400 line-clamp-1" title={img.alt}>
-                          Alt: "{img.alt}"
-                        </p>
-                        <span className="inline-block text-[10px] text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-800/40 truncate max-w-full">
-                          📍 {img.suggestedSection}
+                {activeReport.extractedImages.map((img) => {
+                  const previewFailed = Boolean(failedPreviewIds[img.id]);
+                  return (
+                    <div
+                      key={img.id}
+                      className="group rounded-2xl bg-slate-950/90 border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-cyan-500/40 transition-all min-w-0"
+                    >
+                      <div className="relative aspect-video w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                        {!previewFailed ? (
+                          <img
+                            src={img.url}
+                            alt={img.alt}
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={() => {
+                              setFailedPreviewIds((prev) => ({ ...prev, [img.id]: true }));
+                            }}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-center p-4 space-y-1.5">
+                            <ImageIcon className="w-7 h-7 text-cyan-400/70" />
+                            <span className="text-[11px] font-semibold text-slate-300">
+                              Prévia bloqueada pelo servidor de origem
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              URL original do cliente preservada abaixo
+                            </span>
+                          </div>
+                        )}
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/85 backdrop-blur-md text-cyan-300 border border-cyan-500/30 uppercase">
+                          {img.category}
+                        </span>
+                        <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold backdrop-blur-md border uppercase ${
+                          img.isReal
+                            ? 'bg-emerald-950/85 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-950/85 text-amber-300 border-amber-500/40'
+                        }`}>
+                          {img.isReal ? 'Original do Site' : 'Referência'}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-900">
-                        <a
-                          href={img.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-medium"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Ver</span>
-                        </a>
+                      <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between min-w-0">
+                        <div className="space-y-1 min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate" title={img.label}>
+                            {img.label}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 line-clamp-1" title={img.alt}>
+                            Alt: "{img.alt}"
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-mono truncate" title={img.url}>
+                            {img.url}
+                          </p>
+                          <span className="inline-block text-[10px] text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-800/40 truncate max-w-full">
+                            📍 {img.suggestedSection}
+                          </span>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(img.url, `img_${img.id}`, img.label)}
-                          className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
-                        >
-                          {isCopied(`img_${img.id}`) ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                          <span>{isCopied(`img_${img.id}`) ? 'Link Copiado' : 'Copiar URL'}</span>
-                        </button>
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-900">
+                          <a
+                            href={img.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-medium"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Abrir Original</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(img.url, `img_${img.id}`, img.label)}
+                            className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
+                          >
+                            {isCopied(`img_${img.id}`) ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            <span>{isCopied(`img_${img.id}`) ? 'Link Copiado' : 'Copiar URL'}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="p-5 rounded-2xl bg-slate-950/70 border border-amber-500/30 text-xs text-slate-300 space-y-1.5">
+                <p className="font-bold text-amber-300">
+                  Não foi possível ler imagens públicas automaticamente neste servidor (bloqueio/proteção anti-bot ou página carregada via JS).
+                </p>
+                <p className="text-slate-400">
+                  Para manter a fidelidade visual do cliente, solicite o logotipo e as fotos originais antes de gerar o novo layout — o sistema não substituiu por imagens genéricas de banco gratuito.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* 8 Official Categories of Master Site Engine 10.0 (Pesos Oficiais: 100%) */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 w-full min-w-0">
@@ -1403,10 +1494,10 @@ BIO: ${activeReport.ownerInfo.bioOrAboutSummary}`;
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-extrabold text-white">
-                    Melhorias Muito Melhores Sugeridas pelo Prompt Mestre ({activeReport.recommendedImprovements.length} Ações Prontas)
+                    Melhorias Sugeridas pelo Master Site Engine 10.0 ({activeReport.recommendedImprovements.length} Ações Prontas)
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Cada melhoria traz a solução reescrita no padrão Master Prompt 2.1 com botão individual de copiar.
+                    Cada melhoria preserva integralmente as imagens reais e informações oficiais do cliente extraídas do link auditado.
                   </p>
                 </div>
               </div>

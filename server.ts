@@ -7,6 +7,7 @@ import {
   checkServerHealth, 
   analyzeWithGemini, 
   auditSiteWithGemini,
+  scrapeSiteHtmlPreview,
   analyzeGbpQuestionnaireWithGemini,
   generateGbpDossierWithGemini,
   auditGbpProfileWithGemini,
@@ -94,7 +95,7 @@ app.post('/api/gbp/audit-profile', async (req, res) => {
   }
 });
 
-// Website Link Audit based on Master Prompt 2.1
+// Website Link Audit based on Master Site Engine 10.0
 app.post('/api/audit-site', async (req, res) => {
   try {
     const { url, niche, targetObjective } = req.body;
@@ -102,11 +103,18 @@ app.post('/api/audit-site', async (req, res) => {
       return res.status(400).json({ success: false, error: 'URL do site é obrigatória.' });
     }
 
-    const geminiReport = await auditSiteWithGemini({ url, niche, targetObjective });
+    // Always extract real client images and business info first, even if Gemini key is absent
+    const scrapedData = await scrapeSiteHtmlPreview(url);
+    const geminiReport = await auditSiteWithGemini({ url, niche, targetObjective }, scrapedData);
     if (geminiReport) {
-      return res.json({ success: true, report: geminiReport, source: 'gemini' });
+      return res.json({ success: true, report: geminiReport, scrapedData, source: 'gemini' });
     } else {
-      return res.json({ success: false, source: 'heuristic', message: 'Fallback to client heuristic engine' });
+      return res.json({
+        success: false,
+        scrapedData,
+        source: 'heuristic',
+        message: 'Fallback to client heuristic engine with live scraped data',
+      });
     }
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });

@@ -166,48 +166,70 @@ Preciso que o site fique pronto rápido porque a primavera tá chegando e o pess
     preferredFramework: 'Astro (Astro-First)',
     questionnaire: `QUESTIONÁRIO DE BRIEFING — ADVOGADO INDIVIDUAL (LANDING PAGE)
 
-1. Nome profissional completo, OAB e especialidade principal:
-Dr. Rafael Nogueira — OAB/SP 384.910 — Advogado Especialista em Direito Trabalhista e Previdenciário.
+1. Qual é o seu nome profissional completo (como quer assinar na página), seu número e seccional da OAB e sua especialidade jurídica principal?
+Dr. Rafael Nogueira — OAB/SP 384.910 — Advogado Especialista em Direito Trabalhista e Previdenciário (atuando desde 2013).
 
-2. Principal segurança ou solução entregue ao cliente (Headline Hero):
-Atuação jurídica estratégica na defesa de trabalhadores e segurados do INSS, com análise transparente e atendimento direto com o advogado titular.
+2. Em uma frase simples e direta, qual é a principal segurança ou solução que você entrega para quem procura o seu trabalho?
+Defesa jurídica estratégica dos seus direitos trabalhistas e benefícios do INSS — com clareza, sigilo e atendimento direto pelo advogado titular.
 
-3. Cliente ideal e problema mais urgente:
-Profissionais CLT, bancários e segurados do INSS entre 28 e 60 anos que sofreram demissão irregular, não receberam horas extras ou tiveram aposentadoria negada ou calculada abaixo do devido.
+3. Quem é o cliente ideal que você quer atrair hoje (profissão, faixa etária, situação) e qual problema urgente faz ele procurar um advogado?
+Trabalhadores CLT, bancários e segurados do INSS entre 28 e 65 anos que sofreram demissão irregular, não receberam horas extras ou tiveram aposentadoria ou auxílio negado ou calculado a menor.
 
-4. Principais causas e serviços jurídicos prioritários:
-1. Revisão de Rescisão e Reconhecimento de Vínculo Trabalhista
-2. Cobrança de Horas Extras Bancárias e Adicional de Insalubridade/Periculosidade
-3. Planejamento, Concessão e Revisão de Aposentadoria e Auxílio-Doença no INSS
-4. Acidente de Trabalho e Indenização por Danos Morais
+4. Quais são os 3 maiores medos ou receios que o seu cliente costuma sentir antes de chamar um advogado?
+1. Medo de a empresa descobrir antes da hora que procurou um advogado; 2. Trauma de advogados que somem após assinar a procuração e não respondem WhatsApp; 3. Insegurança sobre prazos, riscos e valores reais de honorários.
 
-5. Trajetória e formação acadêmica:
-Advogado atuante há 12 anos, graduado pela USP e pós-graduado em Direito e Processo do Trabalho pela PUC-SP, com mais de 600 atendimentos realizados e atendimento conduzido pessoalmente do início ao fim.
+5. Liste de 4 a 6 causas ou serviços jurídicos em que você mais atua:
+1. Revisão de Rescisão e Verbas Trabalhistas (conferência de FGTS, férias, 13º e multa de 40%)
+2. Cobrança de Horas Extras Bancárias, Desvio de Função e Insalubridade/Periculosidade
+3. Reconhecimento de Vínculo (PJ Fraudulento)
+4. Aposentadorias e Planejamento Previdenciário (análise do CNIS)
+5. Auxílio-Doença, BPC/LOAS e Reversão de Benefício Negado no INSS
 
-6. Passo a passo do atendimento e tempo de resposta:
-1. Clique no WhatsApp para triagem rápida em até 15 minutos no horário comercial;
-2. Envio seguro de documentos digitais (CTPS, holerites ou CNIS);
-3. Reunião individual por videoconferência ou presencial com parecer técnico claro sobre viabilidade e próximos passos.
+6. Qual é a sua área ou serviço principal e o que acontece logo no primeiro contato quando a pessoa te chama?
+Nosso foco principal é a Análise Trabalhista Completa e a Revisão de Benefícios do INSS. No primeiro contato fazemos uma triagem rápida no WhatsApp para verificar documentos e agendar a consulta jurídica individual.
 
-7. Formato de atendimento e endereço físico:
-Atendimento presencial com hora marcada na Av. Paulista, 1439, Conj. 84 — Bela Vista, São Paulo/SP, CEP 01311-200, e atendimento 100% digital em todo o Brasil via processo eletrônico (PJe).
+7. Como você explica consulta e honorários respeitando a ética da OAB?
+Atendimento inicial com triagem e consulta jurídica personalizada; honorários definidos com total transparência em contrato formal seguindo a Tabela da OAB, com explicação prévia de todas as etapas (sem promessas de causa ganha).
 
-8. Diferenciais éticos conforme Código de Ética da OAB:
-Atendimento direto com o Dr. Rafael sem repassar para terceiros, linguagem simples sem juridiquês, atualizações proativas a cada movimentação relevante e sigilo profissional absoluto (sem promessas de causa ganha).
+8. Existe algum tipo de causa ou cliente que você NÃO atende?
+Não atuamos em Direito Penal, Direito de Família/Divórcio ou defesa patronal de empresas — foco exclusivo na defesa do trabalhador e do segurado do INSS.
 
-9. Provas sociais e credibilidade pública:
-Avaliação média 5.0 no Google Meu Negócio com mais de 85 comentários elogiando transparência e agilidade, além de artigos publicados em portais jurídicos.
+9. Como funciona o passo a passo completo do seu atendimento, desde quando o cliente entra em contato até o andamento do caso?
+Passo 1: Contato pelo WhatsApp relatando seu caso em poucas linhas (sigilo imediato).
+Passo 2: Envio em foto ou PDF dos documentos básicos (CTPS, TRCT, holerites ou CNIS).
+Passo 3: Reunião individual presencial ou por vídeo com o Dr. Rafael para diagnóstico técnico dos seus direitos.
+Passo 4: Assinatura digital do contrato e acompanhamento proativo com atualizações no WhatsApp.
 
-10. Dúvidas frequentes (FAQ):
-- Preciso ir presencialmente? Não, todo o atendimento pode ser feito online com segurança jurídica.
-- A empresa onde trabalho saberá da consulta? Não, todo contato é protegido pelo sigilo da advocacia.
-- Como funciona a consulta jurídica? Analisamos documentos e explicamos honorários de forma clara conforme a tabela da OAB.
+10. Conte sua formação acadêmica e trajetória profissional para a parte "Sobre o Advogado":
+Advogado há 12 anos, graduado em Direito pela USP e pós-graduado em Direito e Processo do Trabalho pela PUC-SP, com mais de 600 atendimentos realizados e conduzidos pessoalmente pelo Dr. Rafael Nogueira.
 
-11. Contatos oficiais e CTA:
-WhatsApp: (11) 98765-4321 | E-mail: contato@rafaelnogueira.adv.br | Seg a Sex, 08:30 às 18:30 | Botão principal: "Falar com o Dr. Rafael no WhatsApp".
+11. Quais são os seus 3 maiores diferenciais no atendimento e qual cuidado você garante ao cliente?
+Atendimento 100% direto com o advogado titular (sem estagiário), linguagem simples sem juridiquês, sigilo profissional absoluto e aviso proativo a cada movimentação do processo.
 
-12. Identidade visual e materiais:
-Azul Marinho (#0F1E36), Dourado acetinado (#C9A24D) e Off-White (#F8F7F4). Estilo editorial minimalista. Possui 4 fotos profissionais em estúdio e logotipo vetorial.`,
-    notes: 'Respeitar integralmente o Provimento 205/2021 da OAB (sem promessas de resultado garantido ou captação mercantilista), destacar a OAB/SP 384.910 no topo e no rodapé e manter foco no atendimento pessoal pelo Dr. Rafael.'
+12. Você possui resultados ou provas públicas que podem ser mostradas na página?
+Mais de 12 anos de atuação, mais de 600 atendimentos realizados, dezenas de recomendações reais elogiando clareza e acolhimento, artigos jurídicos publicados e palestras em comissões da OAB.
+
+13. Quais são as 5 dúvidas que os clientes mais perguntam antes da consulta e as respostas certas?
+1. Preciso ir ao escritório presencialmente? R: Não, todo o atendimento e processo eletrônico podem ser feitos por videoconferência em todo o país.
+2. Minha empresa vai saber que fiz uma consulta? R: Jamais. Todo contato é protegido pelo sigilo profissional da OAB.
+3. Quanto tempo tenho para entrar com ação trabalhista? R: Em regra, até 2 anos após a saída da empresa.
+4. Quais documentos iniciais devo separar? R: Carteira de Trabalho, termo de rescisão e holerites (ou CNIS/carta do INSS).
+5. Como acompanho o andamento do processo? R: Você recebe atualizações diretas pelo WhatsApp sempre que houver novidade.
+
+14. Você atende presencialmente em escritório físico, apenas online ou nos dois formatos? Informe o endereço completo e as regiões:
+Híbrido: atendimento presencial com hora marcada na Av. Paulista, 1439, Conj. 84 — Bela Vista, São Paulo/SP, CEP 01311-200 (próximo ao Metrô Trianon-MASP) e atendimento 100% digital em todo o Brasil.
+
+15. Quais são os seus dias e horários de atendimento e em quanto tempo você costuma responder?
+Segunda a Sexta-feira, das 08:30 às 18:30 | Sábado com agendamento prévio. Retorno médio no WhatsApp em até 15 minutos no horário comercial.
+
+16. Informe seu WhatsApp oficial, telefone fixo, e-mail, Instagram e o que deseja que o visitante faça ao clicar nos botões:
+WhatsApp: (11) 98765-4321 | Telefone Fixo: (11) 3145-9000 | E-mail: contato@rafaelnogueira.adv.br | Instagram: @dr.rafaelnogueira | Ação principal nos botões: "Falar com o Dr. Rafael no WhatsApp".
+
+17. Quais cores e estilo visual combinam com o seu perfil?
+Azul Marinho Profundo (#0F1E36), Dourado Acetinado (#C9A24D) e Off-White (#F8F7F4). Estilo sóbrio, elegante e de fácil leitura, evitando desenhos clichês de martelo ou balança genérica.
+
+18. Você já tem fotos profissionais suas, fotos da sala de atendimento e logotipo em boa qualidade?
+Sim, possuo logotipo vetorial em alta resolução, 4 retratos profissionais em estúdio e 2 fotos do escritório na Av. Paulista.`,
+    notes: 'Respeitar integralmente as normas éticas da OAB (sem promessas de resultado garantido), destacar a OAB/SP 384.910 no topo e no rodapé e manter foco no atendimento pessoal pelo Dr. Rafael.'
   }
 ];

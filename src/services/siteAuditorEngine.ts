@@ -20,186 +20,189 @@ export function extractDomainFromUrl(url: string): string {
   }
 }
 
-// Detect niche heuristically from URL string
-export function detectNicheFromUrl(url: string): { niche: string; businessName: string } {
-  const lower = url.toLowerCase();
-  
-  if (lower.includes('odonto') || lower.includes('dent') || lower.includes('sorriso')) {
-    return { niche: 'Odontologia / Clínica Dental', businessName: 'Clínica Odontológica' };
-  }
-  if (lower.includes('advoc') || lower.includes('jurid') || lower.includes('direito') || lower.includes('law')) {
-    return { niche: 'Advocacia / Escritório Jurídico', businessName: 'Escritório de Advocacia' };
-  }
-  if (lower.includes('estet') || lower.includes('beleza') || lower.includes('hair') || lower.includes('spa')) {
-    return { niche: 'Estética & Harmonização', businessName: 'Clínica de Estética & Bem-Estar' };
-  }
-  if (lower.includes('solar') || lower.includes('energia') || lower.includes('eco')) {
-    return { niche: 'Energia Solar & Engenharia', businessName: 'Empresa de Energia Solar' };
-  }
-  if (lower.includes('imob') || lower.includes('corret') || lower.includes('imovel')) {
-    return { niche: 'Imobiliária / Mercado Imobiliário', businessName: 'Imobiliária de Alto Padrão' };
-  }
-  if (lower.includes('arq') || lower.includes('interiores') || lower.includes('design')) {
-    return { niche: 'Arquitetura & Urbanismo', businessName: 'Studio de Arquitetura' };
-  }
-  if (lower.includes('psi') || lower.includes('terapia') || lower.includes('mente')) {
-    return { niche: 'Psicologia & Terapia', businessName: 'Consultório de Psicologia' };
-  }
-  if (lower.includes('tech') || lower.includes('saas') || lower.includes('software') || lower.includes('app')) {
-    return { niche: 'Software / SaaS / Tecnologia', businessName: 'Tech Company / SaaS' };
-  }
-
-  // Generic fallback
-  const domain = extractDomainFromUrl(url).split('.')[0];
-  const capitalized = domain.charAt(0).toUpperCase() + domain.slice(1);
-  return { niche: 'Serviços Especializados', businessName: capitalized || 'Empresa' };
+export interface ClientScrapedSiteData {
+  finalUrl?: string;
+  title?: string | null;
+  siteName?: string | null;
+  description?: string | null;
+  h1?: string | null;
+  headings?: string[];
+  ogImage?: string | null;
+  logoUrl?: string | null;
+  images?: Array<{
+    id: string;
+    url: string;
+    alt: string;
+    category: 'logo' | 'hero' | 'team' | 'services' | 'facility' | 'other';
+    label: string;
+    suggestedSection: string;
+    isReal?: boolean;
+  }>;
+  businessName?: string | null;
+  ownerName?: string | null;
+  credential?: string | null;
+  whatsapp?: string | null;
+  phones?: string[];
+  emails?: string[];
+  address?: string | null;
+  cityState?: string | null;
+  cnpj?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  youtube?: string | null;
+  servicesDetected?: string[];
+  textSample?: string;
 }
 
-// Deterministic generator of owner info and high-res niche images
-export function generateHeuristicOwnerAndImages(domain: string, niche: string, businessName: string, seed: number): {
-  ownerInfo: SiteOwnerInfo;
-  extractedImages: ExtractedSiteImage[];
-} {
-  const cleanDomain = domain.split('.')[0];
-  const capDomain = cleanDomain.charAt(0).toUpperCase() + cleanDomain.slice(1);
-  
-  let ownerName = 'Dr. Rafael Costa';
-  let role = 'Responsável Técnico & Fundador';
-  let address = 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP, CEP 01311-000';
-  let cityState = 'São Paulo / SP';
-  let heroImg = 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=1200&auto=format&fit=crop&q=80';
-  let ownerImg = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=600&auto=format&fit=crop&q=80';
-  let serviceImg1 = 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&auto=format&fit=crop&q=80';
-  let serviceImg2 = 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=600&auto=format&fit=crop&q=80';
-  let logoImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80';
-  let bioSummary = `Profissional com mais de 12 anos de experiência à frente de ${businessName}. Formado com pós-graduação e certificações de excelência, dedicando-se a entregar resultados superiores em ${niche} com atendimento humanizado e equipamentos modernos.`;
+// Detect niche heuristically from URL string and optional live scraped text
+export function detectNicheFromUrl(url: string, scraped?: ClientScrapedSiteData | null): { niche: string; businessName: string } {
+  const signalText = `${url} ${scraped?.title || ''} ${scraped?.h1 || ''} ${scraped?.description || ''} ${(scraped?.headings || []).join(' ')}`.toLowerCase();
+  const domain = extractDomainFromUrl(url).split('.')[0];
+  const capitalized = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : 'Empresa';
+  const resolvedBrandName = scraped?.businessName?.trim() || scraped?.siteName?.trim() || capitalized;
 
-  if (niche.toLowerCase().includes('odonto')) {
-    ownerName = 'Dr. Marcos Albuquerque';
-    role = 'Cirurgião-Dentista Responsável Técnico — CRO/SP 94.321';
-    heroImg = 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=600&auto=format&fit=crop&q=80';
-  } else if (niche.toLowerCase().includes('advoc') || niche.toLowerCase().includes('jurid')) {
-    ownerName = 'Dra. Helena Vasconcelos';
-    role = 'Sócia Fundadora & Advogada Sênior — OAB/SP 382.410';
-    address = 'Av. Brigadeiro Faria Lima, 2200, 14º andar - Itaim Bibi, São Paulo - SP';
-    heroImg = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80';
-    bioSummary = `Advocacia moderna focada em soluções jurídicas ágeis, segurança contratual e proteção patrimonial com discrição absoluta e atendimento personalizado.`;
-  } else if (niche.toLowerCase().includes('estet') || niche.toLowerCase().includes('beleza')) {
-    ownerName = 'Dra. Camila Bittencourt';
-    role = 'Biomédica Esteta & Diretora Clínica — CRBM/SP 14.520';
-    address = 'Rua Oscar Freire, 800 - Cerqueira César, São Paulo - SP';
-    heroImg = 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1594824813590-789a5e840654?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1512290900672-1f496739eb3b?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600&auto=format&fit=crop&q=80';
-  } else if (niche.toLowerCase().includes('solar') || niche.toLowerCase().includes('energia')) {
-    ownerName = 'Eng. Eduardo Pinheiro';
-    role = 'Diretor de Engenharia & Projetos — CREA/SP 506.912.440';
-    address = 'Rodovia Raposo Tavares, km 18 - São Paulo - SP';
-    heroImg = 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1613665813446-82a78c468a1d?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1508873696983-2df5293cb39f?w=600&auto=format&fit=crop&q=80';
-  } else if (niche.toLowerCase().includes('imob') || niche.toLowerCase().includes('imovel')) {
-    ownerName = 'Rodrigo Mendonça';
-    role = 'Diretor Executivo & Perito Avaliador — CRECI/SP 148.900';
-    address = 'Av. das Nações Unidas, 12551 - Brooklin Novo, São Paulo - SP';
-    heroImg = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&auto=format&fit=crop&q=80';
-  } else if (niche.toLowerCase().includes('arq')) {
-    ownerName = 'Arq. Mariana Esteves';
-    role = 'Arquiteta Titular & Urbanista — CAU/SP A87.410';
-    address = 'Vila Madalena, Rua Aspicuelta, 340 - São Paulo - SP';
-    heroImg = 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1200&auto=format&fit=crop&q=80';
-    ownerImg = 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=600&auto=format&fit=crop&q=80';
-    serviceImg1 = 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=600&auto=format&fit=crop&q=80';
-    serviceImg2 = 'https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=600&auto=format&fit=crop&q=80';
+  if (/odonto|dentist|implante|ortodont|sorriso/.test(signalText)) {
+    return { niche: 'Odontologia / Clínica Dental', businessName: resolvedBrandName };
+  }
+  if (/advoc|jurid|direito|oab\/|law/.test(signalText)) {
+    return { niche: 'Advocacia / Escritório Jurídico', businessName: resolvedBrandName };
+  }
+  if (/estet|harmoniza|botox|beleza|spa|biomedic/.test(signalText)) {
+    return { niche: 'Estética & Harmonização', businessName: resolvedBrandName };
+  }
+  if (/solar|fotovoltaic|energia/.test(signalText)) {
+    return { niche: 'Energia Solar & Engenharia', businessName: resolvedBrandName };
+  }
+  if (/imob|corret|imovel|imóve|creci/.test(signalText)) {
+    return { niche: 'Imobiliária / Mercado Imobiliário', businessName: resolvedBrandName };
+  }
+  if (/arquitet|urbanis|interiores|cau\//.test(signalText)) {
+    return { niche: 'Arquitetura & Urbanismo', businessName: resolvedBrandName };
+  }
+  if (/psicolog|terapia|psicanal|crp\//.test(signalText)) {
+    return { niche: 'Psicologia & Terapia', businessName: resolvedBrandName };
+  }
+  if (/medic|clínica|clinica|saude|saúde|crm\//.test(signalText)) {
+    return { niche: 'Saúde / Clínica Médica', businessName: resolvedBrandName };
+  }
+  if (/tech|saas|software|sistema|automação/.test(signalText)) {
+    return { niche: 'Software / SaaS / Tecnologia', businessName: resolvedBrandName };
   }
 
-  // Consistent owner contact phone generated from seed
-  const ddd = 11;
-  const numPart = 98000 + (seed % 1900);
-  const numSuffix = 1000 + (seed % 8999);
-  const phoneFormatted = `(${ddd}) ${numPart}-${numSuffix}`;
-  const landline = `(${ddd}) 38${seed % 89}-${1000 + (seed % 8000)}`;
-  const cleanEmail = `contato@${domain}`;
+  return { niche: 'Serviços Especializados', businessName: resolvedBrandName };
+}
+
+// Build owner info & image assets prioritizing 100% of live scraped client data and real URLs
+export function buildOwnerAndImagesFromScrape(
+  scraped: ClientScrapedSiteData | null | undefined,
+  domain: string,
+  niche: string,
+  businessName: string
+): {
+  ownerInfo: SiteOwnerInfo;
+  extractedImages: ExtractedSiteImage[];
+  hasRealImages: boolean;
+} {
+  const cleanDomain = domain.split('.')[0];
+  const capDomain = cleanDomain ? cleanDomain.charAt(0).toUpperCase() + cleanDomain.slice(1) : 'Empresa';
+  const finalBusinessName = scraped?.businessName?.trim() || scraped?.siteName?.trim() || businessName || capDomain;
 
   const ownerInfo: SiteOwnerInfo = {
-    businessName: businessName || capDomain,
-    ownerOrLeaderName: ownerName,
-    roleOrCredential: role,
-    whatsapp: phoneFormatted,
-    phone: landline,
-    email: cleanEmail,
-    fullAddress: address,
-    cityState,
-    cnpj: `${10 + (seed % 80)}.${100 + (seed % 800)}.${100 + (seed % 800)}/0001-${10 + (seed % 89)}`,
-    instagram: `@${cleanDomain}.oficial`,
-    bioOrAboutSummary: bioSummary,
+    businessName: finalBusinessName,
+    ownerOrLeaderName: scraped?.ownerName?.trim() || `Responsável Técnico — ${finalBusinessName} (confirmar no atendimento)`,
+    roleOrCredential: scraped?.credential?.trim() || `Especialista em ${niche} (confirmar registro se aplicável)`,
+    whatsapp: scraped?.whatsapp?.trim() || scraped?.phones?.[0]?.trim() || 'Não identificado no HTML — confirmar WhatsApp real do cliente',
+    phone: scraped?.phones?.[0]?.trim() || scraped?.whatsapp?.trim() || 'Não identificado no HTML — confirmar telefone real',
+    email: scraped?.emails?.[0]?.trim() || `Não identificado no HTML (domínio: ${domain})`,
+    fullAddress: scraped?.address?.trim() || 'Não identificado no HTML — confirmar endereço ou área de atendimento',
+    cityState: scraped?.cityState?.trim() || 'Confirmar cidade / UF com cliente',
+    cnpj: scraped?.cnpj?.trim() || undefined,
+    instagram: scraped?.instagram?.trim() || undefined,
+    facebook: scraped?.facebook?.trim() || undefined,
+    linkedin: scraped?.linkedin?.trim() || undefined,
+    youtube: scraped?.youtube?.trim() || undefined,
+    bioOrAboutSummary:
+      (scraped?.description && scraped.description.length > 20
+        ? scraped.description
+        : scraped?.textSample && scraped.textSample.length > 40
+        ? scraped.textSample.slice(0, 320).trim() + (scraped.textSample.length > 320 ? '...' : '')
+        : '') ||
+      `Atuação de ${finalBusinessName} em ${niche}. Confirmar textos institucionais e diferenciais com o cliente antes da publicação.`,
   };
 
-  const extractedImages: ExtractedSiteImage[] = [
-    {
-      id: 'img_logo',
-      url: logoImg,
-      alt: `Logotipo Oficial de ${businessName}`,
-      category: 'logo',
-      label: 'Logotipo Oficial da Marca',
-      suggestedSection: 'Header, Navbar & Rodapé',
-      dimensions: '200x60',
+  const realScrapedImages: ExtractedSiteImage[] = (scraped?.images || [])
+    .filter((img) => Boolean(img?.url))
+    .map((img, idx) => ({
+      id: img.id || `real_img_${idx + 1}`,
+      url: img.url,
+      alt: img.alt || `${finalBusinessName} — ${img.label || `Imagem ${idx + 1}`}`,
+      category: img.category || 'other',
+      label: img.label || `Imagem Real #${idx + 1} do Site`,
+      suggestedSection: img.suggestedSection || 'Preservar na seção correspondente do novo site',
       isReal: true,
-    },
-    {
-      id: 'img_hero',
-      url: heroImg,
-      alt: `Imagem de Destaque Hero — ${businessName} ${niche}`,
-      category: 'hero',
-      label: 'Banner Hero da Primeira Dobra',
-      suggestedSection: 'Primeira Dobra (Hero Section)',
-      dimensions: '1920x1080',
-      isReal: true,
-    },
-    {
-      id: 'img_owner',
-      url: ownerImg,
-      alt: `Foto do Fundador e Especialista — ${ownerName}`,
-      category: 'team',
-      label: `Retrato do Especialista (${ownerName})`,
-      suggestedSection: 'Dobra de Autoridade / Sobre o Especialista',
-      dimensions: '800x1000',
-      isReal: true,
-    },
-    {
-      id: 'img_service_1',
-      url: serviceImg1,
-      alt: `Atendimento e Procedimentos de Excelência em ${niche}`,
-      category: 'services',
-      label: 'Foto dos Serviços e Estrutura Principal',
-      suggestedSection: 'Vitrine de Serviços / Diferenciais',
-      dimensions: '1200x800',
-      isReal: true,
-    },
-    {
-      id: 'img_service_2',
-      url: serviceImg2,
-      alt: `Instalações e Equipamentos Modernos — ${businessName}`,
-      category: 'facility',
-      label: 'Ambiente de Atendimento e Tecnologia',
-      suggestedSection: 'Infraestrutura / Galeria',
-      dimensions: '1200x800',
-      isReal: true,
-    },
-  ];
+    }));
 
-  return { ownerInfo, extractedImages };
+  if (realScrapedImages.length > 0) {
+    return {
+      ownerInfo,
+      extractedImages: realScrapedImages,
+      hasRealImages: true,
+    };
+  }
+
+  return {
+    ownerInfo,
+    extractedImages: [],
+    hasRealImages: false,
+  };
+}
+
+// Helper to build explicit mandatory preservation block for Mega Prompt & Reports
+export function buildClientPreservationBlock(
+  ownerInfo: SiteOwnerInfo,
+  extractedImages: ExtractedSiteImage[],
+  scraped?: ClientScrapedSiteData | null
+): string {
+  const realImgs = extractedImages.filter((i) => i.isReal !== false && Boolean(i.url));
+  const imagesBlock =
+    realImgs.length > 0
+      ? realImgs
+          .map(
+            (img, idx) =>
+              `  ${idx + 1}. [${img.category.toUpperCase()}] ${img.label}\n     • Seção de Destino: ${img.suggestedSection}\n     • Alt-Text Real: "${img.alt}"\n     • URL EXATA A MANTER: ${img.url}`
+          )
+          .join('\n')
+      : '  * Nenhuma URL de imagem pôde ser baixada automaticamente deste servidor. SOLICITE ao cliente o logotipo e fotos reais antes de publicar — PROIBIDO inventar ou usar fotos genéricas sem aprovação.';
+
+  const servicesBlock =
+    scraped?.servicesDetected && scraped.servicesDetected.length > 0
+      ? `\n- Serviços / Tópicos Extraídos do Site Original:\n${scraped.servicesDetected.map((s) => `  * ${s}`).join('\n')}`
+      : '';
+
+  const headingsBlock =
+    scraped?.headings && scraped.headings.length > 0
+      ? `\n- Títulos / Seções Reais do Site Original:\n${scraped.headings.slice(0, 8).map((h) => `  * ${h}`).join('\n')}`
+      : '';
+
+  return `--------------------------------------------------------------------------------
+PRESERVAÇÃO INTEGRAL DE IMAGENS E INFORMAÇÕES DO CLIENTE (REGRA INEGOCIÁVEL)
+--------------------------------------------------------------------------------
+ATENÇÃO IA / DESENVOLVEDOR:
+Todas as melhorias de layout, velocidade, SEO e conversão DEVEM MANTER INTEGRALMENTE as imagens reais e os dados oficiais do cliente listados abaixo. É TERMINANTEMENTE PROIBIDO substituir as fotos do cliente por imagens genéricas de bancos gratuitos ou alterar nomes, telefones, WhatsApp, e-mail, CNPJ ou endereço reais.
+
+1. IMAGENS REAIS DO CLIENTE PRESERVADAS (${realImgs.length} ativos):
+${imagesBlock}
+
+2. INFORMAÇÕES OFICIAIS DO CLIENTE PRESERVADAS:
+- Empresa / Marca: ${ownerInfo.businessName}
+- Responsável / Líder: ${ownerInfo.ownerOrLeaderName} (${ownerInfo.roleOrCredential})
+- WhatsApp Oficial: ${ownerInfo.whatsapp}
+- Telefone Comercial: ${ownerInfo.phone}
+- E-mail Corporativo: ${ownerInfo.email}
+- Endereço Físico: ${ownerInfo.fullAddress}
+- Cidade / UF: ${ownerInfo.cityState}${ownerInfo.cnpj ? `\n- CNPJ: ${ownerInfo.cnpj}` : ''}${ownerInfo.instagram ? `\n- Instagram: ${ownerInfo.instagram}` : ''}${ownerInfo.facebook ? `\n- Facebook: ${ownerInfo.facebook}` : ''}${ownerInfo.linkedin ? `\n- LinkedIn: ${ownerInfo.linkedin}` : ''}${ownerInfo.youtube ? `\n- YouTube: ${ownerInfo.youtube}` : ''}
+- Resumo / Bio Original: ${ownerInfo.bioOrAboutSummary}${scraped?.title ? `\n- Title Original Detectado: ${scraped.title}` : ''}${scraped?.h1 ? `\n- H1 Original Detectado: ${scraped.h1}` : ''}${servicesBlock}${headingsBlock}`;
 }
 
 // Determine status label based on score
@@ -210,11 +213,35 @@ function getStatusFromScore(score: number): 'critical' | 'warning' | 'good' | 'o
   return 'critical';
 }
 
-// Master Site Engine 10.0: Deterministic heuristic audit generator grounded in the 8 weighted categories
-export function generateHeuristicSiteAudit(request: SiteAuditRequest): SiteAuditReport {
-  const domain = extractDomainFromUrl(request.url);
-  const { niche, businessName } = detectNicheFromUrl(request.url);
+// Master Site Engine 10.0: Deterministic audit generator grounded in the 8 weighted categories and live scraped client data
+export function generateHeuristicSiteAudit(
+  request: SiteAuditRequest,
+  scrapedData?: ClientScrapedSiteData | null
+): SiteAuditReport {
+  const domain = extractDomainFromUrl(scrapedData?.finalUrl || request.url);
+  const { niche, businessName } = detectNicheFromUrl(request.url, scrapedData);
   const effectiveNiche = request.niche || niche;
+  const { ownerInfo, extractedImages, hasRealImages } = buildOwnerAndImagesFromScrape(
+    scrapedData,
+    domain,
+    effectiveNiche,
+    businessName
+  );
+  const finalBusinessName = ownerInfo.businessName;
+  const cityOnly = ownerInfo.cityState.includes('Confirmar')
+    ? '[Cidade do Cliente]'
+    : ownerInfo.cityState.split('/')[0].trim();
+  const realWhatsapp = ownerInfo.whatsapp.startsWith('Não identificado')
+    ? '[WhatsApp Oficial do Cliente]'
+    : ownerInfo.whatsapp;
+  const primaryRealServices =
+    scrapedData?.servicesDetected && scrapedData.servicesDetected.length > 0
+      ? scrapedData.servicesDetected.slice(0, 4).join(', ')
+      : effectiveNiche;
+  const realImagesSummaryForPrompt =
+    hasRealImages
+      ? extractedImages.map((img) => `• [${img.category.toUpperCase()}] ${img.label}: ${img.url}`).join('\n')
+      : '• Solicitar e manter o logotipo e fotos reais já utilizadas pelo cliente no site atual.';
 
   // Domain complexity seed to generate consistent realistic analysis
   let seed = 0;
@@ -446,111 +473,119 @@ export function generateHeuristicSiteAudit(request: SiteAuditRequest): SiteAudit
     },
   ];
 
-  // Improvements ready to copy
+  // Improvements ready to copy — strictly preserving real client images and real client information
   const improvements: SiteImprovementAction[] = [
     {
       id: 'imp_uvp',
-      title: 'Reformulação Completa da Proposta Única de Valor (Hero Section)',
+      title: `Reformulação da Proposta de Valor no Hero de ${finalBusinessName} (Mantendo Fotos Reais)`,
       category: 'uvp',
       impact: 'very_high',
-      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 4 & 7 (Design do Hero e Conversão)',
-      currentIssue: `O site atual em "${domain}" usa chamadas fracas e genéricas que perdem até 70% dos visitantes nos primeiros 4 segundos.`,
-      improvedProposal: `Substituição por Headline de Alta Conversão com Gancho Imediato, Subtítulo Explicativo e Botão de Atendimento Direto.`,
-      copyableContent: `[HERO SECTION PADRÃO WORLD-CLASS — MASTER SITE ENGINE 10.0]
-TAG SUPERIOR: ⚡ REFERÊNCIA EM ${effectiveNiche.toUpperCase()}
-HEADLINE PRINCIPAL: "A Experiência Definitiva em ${effectiveNiche}: Resultados Comprovados Sem Dor de Cabeça"
-SUBTÍTULO: "Atendimento exclusivo com hora marcada, tecnologia de ponta e protocolo individualizado para quem não abre mão da máxima qualidade."
-CTA PRIMÁRIO: "Falar com Especialista no WhatsApp →"
-CTA SECUNDÁRIO: "Conhecer Metodologia & Casos"
-MICRO-PROVAS: "★ 4.9 no Google • Atendimento Humanizado • Protocolo com Garantia"`,
+      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 4 & 7 (Design do Hero, Preservação de Ativos & Conversão)',
+      currentIssue: scrapedData?.h1
+        ? `A dobra principal atual de "${domain}" exibe o H1 "${scrapedData.h1}", que pode ser mais direto para converter visitantes nos primeiros 4 segundos — mantendo integralmente a identidade e fotos reais de ${finalBusinessName}.`
+        : `O site atual em "${domain}" pode tornar a primeira dobra mais clara nos primeiros 4 segundos, mantendo a marca e as fotos reais de ${finalBusinessName}.`,
+      improvedProposal: `Reescrever a primeira dobra com Headline de Alta Conversão usando os serviços reais (${primaryRealServices}), mantendo o logotipo e a foto real do cliente em destaque.`,
+      copyableContent: `[HERO SECTION PARA ${finalBusinessName.toUpperCase()} — COM PRESERVAÇÃO DAS IMAGENS REAIS]
+EMPRESA / MARCA REAL: ${finalBusinessName}
+LOCALIZAÇÃO: ${cityOnly}
+${scrapedData?.h1 ? `H1 ORIGINAL AUDITADO: "${scrapedData.h1}"` : ''}
+HEADLINE SUGERIDA: "${effectiveNiche} com ${finalBusinessName} em ${cityOnly}: Atendimento Especializado e Soluções Sob Medida"
+SUBTÍTULO: "${ownerInfo.bioOrAboutSummary.slice(0, 190)}"
+SERVIÇOS REAIS EM DESTAQUE: ${primaryRealServices}
+CTA PRIMÁRIO (WHATSAPP REAL): "Falar com ${finalBusinessName} no WhatsApp (${realWhatsapp}) →"
+IMAGENS REAIS A MANTER NA DOBRA:
+${realImagesSummaryForPrompt}`,
     },
     {
       id: 'imp_cta',
-      title: 'Nova Chamada para Ação (CTA) com Menor Fricção Cognitiva',
+      title: `CTA Direto para o WhatsApp Real de ${finalBusinessName}`,
       category: 'cta',
       impact: 'critical',
       masterPromptReference: 'Master Site Engine 10.0 — Diretriz 7 (Conversão e WhatsApp Direto)',
-      currentIssue: `Botão atual diz apenas "Saiba Mais" ou leva a um formulário frio de múltiplos campos.`,
-      improvedProposal: `Botão de WhatsApp inteligente com mensagem pré-preenchida e micro-conversão em 1 clique.`,
-      copyableContent: `[ESTRATÉGIA DE CTA REFORMULADA — MASTER SITE ENGINE 10.0]
-BOTÃO PRINCIPAL: "Falar com Nossa Equipe no WhatsApp"
-SUB-TEXTO DO BOTÃO: "Atendimento com resposta em até 15 minutos"
-TEXTO AUTOMÁTICO DO WHATSAPP:
-"Olá! Acessei o site oficial de ${businessName} e gostaria de agendar uma consulta/orçamento sobre ${effectiveNiche}. Como funciona o atendimento?"`,
+      currentIssue: `Chamadas para ação sem direcionamento imediato para o contato oficial de ${finalBusinessName} reduzem a conversão de visitantes no celular.`,
+      improvedProposal: `Botão de WhatsApp conectado diretamente ao número oficial (${realWhatsapp}) e e-mail (${ownerInfo.email}) do cliente, com mensagem contextualizada para ${effectiveNiche}.`,
+      copyableContent: `[ESTRATÉGIA DE CTA — DADOS OFICIAIS DO CLIENTE MANTIDOS]
+EMPRESA: ${finalBusinessName}
+WHATSAPP OFICIAL PRESERVADO: ${realWhatsapp}
+TELEFONE COMERCIAL: ${ownerInfo.phone}
+E-MAIL CORPORATIVO: ${ownerInfo.email}
+BOTÃO PRINCIPAL: "Falar com ${finalBusinessName} no WhatsApp"
+MENSAGEM AUTOMÁTICA NO CLIQUE:
+"Olá, equipe ${finalBusinessName}! Acessei o site oficial (${domain}) e gostaria de mais informações sobre ${primaryRealServices}."`,
     },
     {
       id: 'imp_design',
-      title: 'Design System World-Class & Proporção 60-30-10',
+      title: `Upgrade Visual 60-30-10 Mantendo Logotipo e Fotos Reais de ${finalBusinessName}`,
       category: 'design_system',
       impact: 'very_high',
-      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 4 (Design e Identidade Visual — Peso 20%)',
-      currentIssue: `Poluição visual com fundos brancos sem respiro e contrastes amadores que desvalorizam o ticket médio do cliente.`,
-      improvedProposal: `Adoção de paleta sóbria escura (Dark Luxury Slate) com acentos em Ciano Tecnológico e Dourado Sutil, garantindo percepção de alto luxo.`,
-      copyableContent: `[PALETA & DESIGN SYSTEM WORLD-CLASS — MASTER SITE ENGINE 10.0]
-• Fundo Primário (60%): #020617 (Slate 950 Noturno Ultra Profundo)
-• Superfícies & Cartões (30%): #0f172a com borda sutil em #1e293b
-• Cor de Acento Focal (10%): #06b6d4 (Cyan Vibrante de Alta Energia para CTAs)
-• Tipografia Títulos: Inter ou Plus Jakarta Sans (ExtraBold com tracking tight)
-• Tipografia Corpo: Inter (Regular / Medium com leading relaxado)
-• Espaçamento Modular: 96px entre seções principais para respiro deliberado`,
+      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 4 (Identidade Visual — Peso 20%)',
+      currentIssue: `Layout atual de "${domain}" precisa de melhor hierarquia tipográfica, contraste e espaçamento entre seções, sem perder a identidade visual original da marca.`,
+      improvedProposal: `Aplicar proporção 60-30-10, tipografia editorial contrastada e cards modernos emoldurando EXATAMENTE o logotipo e as fotografias reais extraídas do site do cliente.`,
+      copyableContent: `[DIREÇÃO VISUAL COM PRESERVAÇÃO INTEGRAL DE ATIVOS — ${finalBusinessName.toUpperCase()}]
+REGRA INEGOCIÁVEL: Não substituir por fotos genéricas. Utilizar as URLs originais do cliente:
+${realImagesSummaryForPrompt}
+• Header & Rodapé: Exibir logotipo oficial de ${finalBusinessName} com link para início e contatos reais (${realWhatsapp} | ${ownerInfo.email}).
+• Tipografia Títulos: Inter / Plus Jakarta Sans (negrito com alto contraste).
+• Espaçamento Modular: Mínimo 80px-96px entre blocos para leitura limpa e valorização das fotos reais.`,
     },
     {
       id: 'imp_tech',
-      title: 'Engenharia Astro-First & Core Web Vitals (< 1.2s)',
+      title: `Otimização PageSpeed 9.5+ Convertendo as Mesmas Fotos do Cliente para WebP/AVIF`,
       category: 'tech_stack',
       impact: 'critical',
-      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 6 (Performance e Velocidade — Peso 15%)',
-      currentIssue: `Site lento em plataforma antiga (Wordpress / Wix / Elementor) com plugins que derrubam o ranking do Google e aumentam o custo do tráfego pago.`,
-      improvedProposal: `Reconstrução em Astro + Tailwind CSS estático gerando arquivos HTML puros sem Javascript desnecessário.`,
-      copyableContent: `[ARQUITETURA TECNOLÓGICA WORLD-CLASS — MASTER SITE ENGINE 10.0]
-• Framework: Astro 5.x (Arquitetura Islands com Zero JavaScript desnecessário)
-• Estilização: Tailwind CSS v4 para código CSS inline minificado (< 15kb)
-• Imagens: Formato AVIF e WebP com carregamento prioritário (FetchPriority="high") no Hero
-• Hospedagem: Hostinger Estática / Cloudflare Edge com TTFB < 90ms
-• Meta de Performance: 98/100 no Google PageSpeed Mobile com LCP < 1.1 segundos`,
+      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 6 (Performance 9.5+ — Peso 15%)',
+      currentIssue: `Imagens originais pesadas ou scripts bloqueantes em "${domain}" prejudicam a nota no Google PageSpeed Mobile (< 9.5).`,
+      improvedProposal: `Otimizar tecnicamente as MESMAS imagens reais de ${finalBusinessName} (compressão WebP/AVIF, width/height explícitos, fetchpriority="high" no Hero) sem trocar nenhuma foto do cliente.`,
+      copyableContent: `[OTIMIZAÇÃO DE PERFORMANCE MANTENDO AS FOTOS DO CLIENTE]
+1. Baixar e converter para WebP/AVIF (<150KB fundos, <80KB cards) mantendo exatamente as fotos originais de ${finalBusinessName}:
+${realImagesSummaryForPrompt}
+2. Definir atributos width, height e alt semântico real em cada <img> para zerar CLS (< 0.05).
+3. Eliminar scripts bloqueantes e usar arquitetura estática (Astro/Tailwind) para atingir nota >= 9.5 no PageSpeed Insights.`,
     },
     {
       id: 'imp_copy',
-      title: 'Estrutura Persuasiva de Prova Social e Quebra de Objeções',
+      title: `Seção Sobre, Autoridade & Credenciais Reais de ${finalBusinessName}`,
       category: 'copywriting',
       impact: 'high',
-      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 7 (Prova Social e Autoridade Legítima)',
-      currentIssue: `Falta de autoridade tangível e depoimentos sem estrutura que falham em convencer clientes de ticket médio alto.`,
-      improvedProposal: `Bloco de Prova Social com 3 pilares: Métricas Verificadas, Depoimentos em Formato Problema/Solução e FAQ Quebra-Objeções.`,
-      copyableContent: `[BLOCO DE PROVA SOCIAL & AUTORIDADE — MASTER SITE ENGINE 10.0]
-MÉTRICAS DE IMPACTO:
-• "+10 Anos de Atuação no Segmento"
-• "Mais de 1.800 Clientes Atendidos com Satisfação"
-• "Garantia de Protocolo e Respeito aos Prazos"
-
-DEPOIMENTO MODELO DE ALTA CONVERSÃO:
-"Cheguei com receio e muitas dúvidas sobre prazos e valores. Desde a primeira consulta a equipe de ${businessName} foi impecável e entregou muito acima das minhas expectativas. Super recomendo!"
-— Roberto Guimarães, Cliente Verificado`,
+      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 7 (Autoridade Real e Prova Social Legítima)',
+      currentIssue: `As credenciais, serviços e histórico real de ${finalBusinessName} precisam ficar mais escaneáveis com blocos dedicados e foto real do responsável/equipe.`,
+      improvedProposal: `Organizar os dados reais do responsável, serviços confirmados e resumo institucional sem inventar métricas ou depoimentos fictícios.`,
+      copyableContent: `[BLOCO DE AUTORIDADE REAL — ${finalBusinessName.toUpperCase()}]
+EMPRESA: ${finalBusinessName}
+RESPONSÁVEL / LIDERANÇA: ${ownerInfo.ownerOrLeaderName}
+REGISTRO / CREDENCIAL: ${ownerInfo.roleOrCredential}
+HISTÓRIA / BIO ORIGINAL: ${ownerInfo.bioOrAboutSummary}
+SERVIÇOS REAIS: ${primaryRealServices}
+ENDEREÇO REAL: ${ownerInfo.fullAddress}
+${ownerInfo.cnpj ? `CNPJ OFICIAL: ${ownerInfo.cnpj}` : ''}`,
     },
     {
       id: 'imp_seo',
-      title: 'Otimização Estratégica de SEO On-Page Local & GEO',
+      title: `SEO On-Page & Schema.org LocalBusiness com Dados Reais de ${finalBusinessName}`,
       category: 'seo',
       impact: 'high',
-      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 5 (SEO On-Page, Local e Semântico — Peso 20%)',
-      currentIssue: `Tags de busca mal configuradas fazendo o site não pontuar para clientes que buscam na cidade ou bairro.`,
-      improvedProposal: `Estruturação do H1, Title e Metadados com o nicho oficial e localização para captura imediata de busca no Google.`,
-      copyableContent: `[METADADOS E HIERARQUIA SEO ON-PAGE — MASTER SITE ENGINE 10.0]
-• Title Tag: "${effectiveNiche} em [Sua Cidade] | ${businessName}"
-• Meta Description: "Encontre os melhores serviços de ${effectiveNiche} em [Sua Cidade]. Atendimento personalizado, alta tecnologia e resultados garantidos. Fale conosco hoje mesmo!"
-• Tag H1 Única: "${effectiveNiche} de Excelência em [Sua Cidade]"
-• Tags H2: "Nossos Tratamentos e Serviços Exclusivos", "Por Que Somos a Escolha Número 1", "O Que Dizem Nossos Clientes"`,
+      masterPromptReference: 'Master Site Engine 10.0 — Diretriz 5 (SEO On-Page e Local — Peso 20%)',
+      currentIssue: `${scrapedData?.title ? `Title atual ("${scrapedData.title}")` : 'Metadados atuais'} e dados estruturados podem ser reforçados com NAP idêntico ao cadastro oficial de ${finalBusinessName}.`,
+      improvedProposal: `Configurar Title Tag, Meta Description, H1 e JSON-LD LocalBusiness utilizando exclusivamente o nome, endereço, telefone e imagens reais do cliente.`,
+      copyableContent: `[METADADOS SEO & SCHEMA.ORG — DADOS REAIS PRESERVADOS]
+• Title Tag: "${effectiveNiche} em ${cityOnly} | ${finalBusinessName}"
+• Meta Description: "${scrapedData?.description || `${finalBusinessName} — ${effectiveNiche} em ${cityOnly}. Atendimento via WhatsApp ${realWhatsapp}.`}"
+• H1 Sugerido: "${effectiveNiche} em ${cityOnly} — ${finalBusinessName}"
+• Dados NAP para Schema.org JSON-LD:
+  - Name: "${finalBusinessName}"
+  - Telephone: "${ownerInfo.phone} / ${realWhatsapp}"
+  - Email: "${ownerInfo.email}"
+  - Address: "${ownerInfo.fullAddress}"${ownerInfo.instagram ? `\n  - Instagram: "${ownerInfo.instagram}"` : ''}`,
     },
   ];
 
-  // Generate deterministic owner info and visual image assets
-  const { ownerInfo, extractedImages } = generateHeuristicOwnerAndImages(domain, effectiveNiche, businessName, seed);
+  const preservationBlock = buildClientPreservationBlock(ownerInfo, extractedImages, scrapedData);
 
   // GERAÇÃO DO MEGA PROMPT DEFINITIVO DE RECRIAÇÃO & REENGENHARIA (PARTE 2 DO MASTER SITE ENGINE 10.0)
   const megaPrompt10 = `================================================================================
 MEGA PROMPT DE RECRIAÇÃO & OTIMIZAÇÃO MÁXIMA — MASTER SITE ENGINE 10.0
 SISTEMA DE REENGENHARIA DIGITAL DEFINITIVO
-PROJETO: RECONSTRUÇÃO DE ${businessName.toUpperCase()}
+PROJETO: MELHORIA & RECONSTRUÇÃO DE ${finalBusinessName.toUpperCase()}
 URL DE ORIGEM AUDITADA: ${request.url}
 NICHO DETECTADO: ${effectiveNiche.toUpperCase()}
 NOTA ATUAL NO DIAGNÓSTICO: ${overallScore}/100 (${scoreLabel.toUpperCase()})
@@ -558,82 +593,72 @@ NOTA ATUAL NO DIAGNÓSTICO: ${overallScore}/100 (${scoreLabel.toUpperCase()})
 
 INSTRUÇÃO PARA A IA / DESENVOLVEDOR:
 Você deve atuar como a equipe de elite multidisciplinar do MASTER SITE ENGINE 10.0 (Estrategista Digital, Diretor de Arte, Especialista em CRO, Copywriter de Vendas, Engenheiro de SEO e Engenheiro Front-End Astro/Tailwind).
-Reconstrua o projeto de "${businessName}" a partir do zero, superando todas as deficiências diagnosticadas na auditoria e aplicando as 63 Diretrizes Inegociáveis com nota máxima nos 8 pilares oficiais.
+Melhore e reconstrua o projeto de "${finalBusinessName}" superando as falhas de desempenho, design e conversão diagnosticadas, MAS MANTENDO INTEGRALMENTE TODAS AS IMAGENS REAIS E INFORMAÇÕES OFICIAIS DO CLIENTE ABAIXO.
 
 --------------------------------------------------------------------------------
-A. ESTRATÉGIA, POSICIONAMENTO & IDENTIDADE CONFIRMADA
+A. ESTRATÉGIA, POSICIONAMENTO & IDENTIDADE OFICIAL DO CLIENTE
 --------------------------------------------------------------------------------
-- Nome da Empresa: ${businessName}
+- Nome da Empresa / Marca: ${finalBusinessName}
 - Proprietário / Responsável Técnico: ${ownerInfo.ownerOrLeaderName} (${ownerInfo.roleOrCredential})
-- WhatsApp Oficial de Vendas: ${ownerInfo.whatsapp}
+- WhatsApp Oficial: ${ownerInfo.whatsapp}
 - Telefone Comercial: ${ownerInfo.phone}
 - E-mail Corporativo: ${ownerInfo.email}
 - Endereço Físico: ${ownerInfo.fullAddress}
 - Cidade / UF: ${ownerInfo.cityState}
-- Proposta Única de Valor (UVP em 4s): Posicionar ${businessName} como a escolha número 1 incontestável em ${effectiveNiche}, transmitindo luxo, precisão, segurança e autoridade imediata.
-- Objetivo Comercial Principal: Conversão em 1 clique para agendamento e atendimento VIP via WhatsApp oficial.
+${ownerInfo.cnpj ? `- CNPJ: ${ownerInfo.cnpj}\n` : ''}${ownerInfo.instagram ? `- Instagram: ${ownerInfo.instagram}\n` : ''}- Serviços Reais Confirmados: ${primaryRealServices}
+- Objetivo Comercial Principal: Conversão direta para atendimento via WhatsApp oficial e agendamentos.
+
+${preservationBlock}
 
 --------------------------------------------------------------------------------
-B. DIREÇÃO DE ARTE EXCLUSIVA & SISTEMA VISUAL PREMIUM (PESO 20%)
+C. DIREÇÃO DE ARTE EXCLUSIVA & SISTEMA VISUAL PREMIUM (PESO 20%)
 --------------------------------------------------------------------------------
-- Regra Fundamental: É PROIBIDO parecer um template genérico de WordPress/Wix.
-- Paleta 60-30-10:
-  * 60% Fundo Noturno Sofisticado (#020617 Slate 950 ultra profundo).
-  * 30% Superfícies & Cartões Foscos (#0f172a com bordas sutis em #1e293b).
-  * 10% Acento Focal de Energia (#06b6d4 Cyan para CTAs e conversão).
+- Regra Fundamental: É PROIBIDO trocar as fotos do cliente acima por fotos aleatórias ou parecer um template genérico.
+- Paleta 60-30-10 harmônica com a identidade visual do logotipo real do cliente.
 - Hero Section de Alto Impacto:
-  * Selo superior translúcido com nicho e cidade.
-  * Headline display com palavras estratégicas destacadas.
-  * Foto recortada do especialista (${ownerInfo.ownerOrLeaderName}) ou do ambiente com glow suave atrás.
-  * Dois cartões flutuantes em vidro fosco com métricas verificadas e prova social legítima.
-  * Botão de CTA primário magnético de alta conversão.
+  * Tag superior com nicho (${effectiveNiche}) e cidade (${cityOnly}).
+  * Headline clara explicando o serviço em até 4 segundos + subtítulo fiel à atuação real.
+  * Imagem Hero ou retrato real do especialista preservando a URL original do cliente.
+  * Botão de CTA primário magnético direcionando para o WhatsApp oficial (${realWhatsapp}).
 
 --------------------------------------------------------------------------------
-C. ARQUITETURA DE CONVERSÃO & ROTEIRO DAS DOBRAS (PESO 15%)
+D. ARQUITETURA DE CONVERSÃO & ROTEIRO DAS DOBRAS (PESO 15%)
 --------------------------------------------------------------------------------
-- Dobra 1: Header minimalista com Logo, menu de âncoras suaves e CTA "Falar no WhatsApp".
-- Dobra 2: Hero Section com UVP clara em 4 segundos e micro-provas sociais.
-- Dobra 3: Dores do Público & Por que os métodos comuns falham.
-- Dobra 4: Solução Exclusiva e Metodologia de ${businessName}.
-- Dobra 5: Vitrine de Serviços de Alto Ticket com descrição e benefício.
-- Dobra 6: Prova Social e Autoridade (${ownerInfo.ownerOrLeaderName}, credenciais e tempo de atuação).
-- Dobra 7: Localização & Atendimento com mapa e WhatsApp direto.
-- Dobra 8: FAQ Quebra-Objeções e Rodapé completo com dados legais e link para Política de Privacidade.
+- Dobra 1: Header minimalista com o Logotipo REAL do cliente, menu de âncoras e CTA WhatsApp.
+- Dobra 2: Hero Section com proposta de valor clara + imagem Hero real do cliente.
+- Dobra 3: Problemas resolvidos e diferenciais reais de ${finalBusinessName}.
+- Dobra 4: Vitrine dos serviços reais (${primaryRealServices}) utilizando as fotos originais preservadas.
+- Dobra 5: Sobre / Autoridade (${ownerInfo.ownerOrLeaderName}, história real e registro ${ownerInfo.roleOrCredential}).
+- Dobra 6: Localização, horários e contato direto (${ownerInfo.fullAddress} | ${realWhatsapp} | ${ownerInfo.email}).
+- Dobra 7: FAQ e Rodapé completo com dados cadastrais reais (CNPJ/Endereço/Redes) e Política de Privacidade (LGPD).
 
 --------------------------------------------------------------------------------
-D. SEO AVANÇADO ON-PAGE, TÉCNICO, LOCAL & GEO (PESO 20%)
+E. SEO AVANÇADO ON-PAGE, TÉCNICO, LOCAL & GEO (PESO 20%)
 --------------------------------------------------------------------------------
-- Tag H1: "${effectiveNiche} de Excelência em ${ownerInfo.cityState.split('/')[0].trim()} | ${businessName}"
-- Title Tag: "${effectiveNiche} em ${ownerInfo.cityState.split('/')[0].trim()} — Atendimento de Excelência | ${businessName}"
-- Meta Description: "Encontre os melhores serviços de ${effectiveNiche} em ${ownerInfo.cityState.split('/')[0].trim()}. Tecnologia moderna, atendimento humanizado e protocolo de resultados garantidos. Fale conosco no WhatsApp!"
-- Marcação Schema.org LocalBusiness estruturada em JSON-LD com endereço NAP, coordenadas e telefone idênticos ao Google Meu Negócio.
+- Tag H1: "${effectiveNiche} em ${cityOnly} | ${finalBusinessName}"
+- Title Tag: "${effectiveNiche} em ${cityOnly} — Atendimento Especializado | ${finalBusinessName}"
+- Meta Description: "${scrapedData?.description || `${finalBusinessName} — ${effectiveNiche} em ${cityOnly}. Entre em contato pelo WhatsApp ${realWhatsapp}.`}"
+- Marcação Schema.org LocalBusiness estruturada em JSON-LD com endereço NAP, telefone e URLs das imagens originais do cliente.
 
 --------------------------------------------------------------------------------
-E. PERFORMANCE EXTREMA & CORE WEB VITALS (PESO 15%)
+F. PERFORMANCE EXTREMA (META > 9.5 PAGESPEED) & LGPD (PESO 30%)
 --------------------------------------------------------------------------------
-- Meta Absoluta: 95+ no Google PageSpeed Insights Mobile com LCP < 1.2s, INP < 150ms e CLS < 0.05.
-- Stack Recomendada: Astro-First com Tailwind CSS estático (sem dependência de processos pesados no servidor).
-- Imagens em WebP/AVIF com srcset, sizes e dimensões explícitas.
-
---------------------------------------------------------------------------------
-F. ACESSIBILIDADE WCAG 2.2 AA & SEGURANÇA/LGPD (PESO 15%)
---------------------------------------------------------------------------------
-- Contraste superior a 4.5:1 em todos os textos.
-- Navegação 100% acessível por teclado com outlines visíveis de foco.
-- Formulários com labels claros e consentimento de privacidade conforme a LGPD.
-- Links funcionais de WhatsApp com texto pré-programado.
+- Meta Absoluta: Nota >= 95 (9.5+) no Google PageSpeed Insights Mobile e Desktop (LCP < 1.8s, INP < 100ms, CLS < 0.05).
+- Converter as MESMAS imagens reais do cliente preservadas na Seção B para WebP/AVIF mantendo alt-texts descritivos e width/height explícitos.
+- Contraste WCAG 2.2 AA (> 4.5:1), navegação por teclado e conformidade LGPD nos formulários.
 
 CRITÉRIO DE ACEITAÇÃO:
-A aplicação final deste Mega Prompt deve eliminar os bloqueios críticos detectados e atingir pontuação superior a 90/100 na reauditoria obrigatória.`;
+A nova versão deve preservar 100% das fotos e dados oficiais de ${finalBusinessName} listados acima, eliminando os gargalos técnicos detectados e atingindo nota superior a 90/100.`;
 
   // Full client-facing markdown report following Master Site Engine 10.0 Format (Item 14)
   const fullReport = `# RELATÓRIO DE QUALIDADE DO SITE — MASTER SITE ENGINE 10.0
 ## QUALITY CONTROL, PERFORMANCE AUDIT & REENGINEERING SYSTEM
 
-**Nome do Projeto:** ${businessName}
+**Nome do Projeto:** ${finalBusinessName}
 **URL Auditada:** ${request.url}
 **Domínio:** ${domain}
 **Nicho Detectado:** ${effectiveNiche}
+**Extração ao Vivo do Link:** ${scrapedData ? `Sim (${extractedImages.length} imagens reais preservadas)` : 'Fallback heurístico (site indisponível ou bloqueou leitura direta)'}
 **Data da Auditoria:** ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}
 **Norma Técnica:** MASTER SITE ENGINE 10.0 (Sistema Integrado de Auditoria, Otimização e Reengenharia)
 
@@ -659,7 +684,7 @@ STATUS OFICIAL: ${approvalStatus}
 --------------------------------------------------------------------------------
 2. BLOQUEIOS CRÍTICOS DE PUBLICAÇÃO IDENTIFICADOS:
 --------------------------------------------------------------------------------
-${criticalBlockers.map((b, i) => `
+${criticalBlockers.map((b) => `
 [${b.priority} - BLOQUEADOR] ${b.title}
 • Evidência: ${b.evidence}
 • Impacto Comercial: ${b.impact}
@@ -667,7 +692,7 @@ ${criticalBlockers.map((b, i) => `
 `).join('\n')}
 
 --------------------------------------------------------------------------------
-3. DADOS DO PROPRIETÁRIO & CONTATOS IDENTIFICADOS NO SITE:
+3. DADOS REAIS DO PROPRIETÁRIO & CONTATOS MANTIDOS DO SITE:
 --------------------------------------------------------------------------------
 • Empresa / Marca: ${ownerInfo.businessName}
 • Proprietário / Líder: ${ownerInfo.ownerOrLeaderName} (${ownerInfo.roleOrCredential})
@@ -675,18 +700,21 @@ ${criticalBlockers.map((b, i) => `
 • Telefone Fixo: ${ownerInfo.phone}
 • E-mail Corporativo: ${ownerInfo.email}
 • Endereço: ${ownerInfo.fullAddress}
-• CNPJ: ${ownerInfo.cnpj || 'Sob consulta'}
-• Redes Sociais: ${ownerInfo.instagram || 'N/A'}
-• Resumo Profissional: ${ownerInfo.bioOrAboutSummary}
+• Cidade / UF: ${ownerInfo.cityState}
+• CNPJ: ${ownerInfo.cnpj || 'Não informado'}
+• Redes Sociais: ${[ownerInfo.instagram, ownerInfo.facebook, ownerInfo.linkedin, ownerInfo.youtube].filter(Boolean).join(' | ') || 'N/A'}
+• Resumo / Bio: ${ownerInfo.bioOrAboutSummary}
 
 --------------------------------------------------------------------------------
-4. ATIVOS VISUAIS & FOTOS RASTREADAS:
+4. IMAGENS REAIS EXTRAÍDAS DO SITE DO CLIENTE (PRESERVAÇÃO OBRIGATÓRIA):
 --------------------------------------------------------------------------------
-${extractedImages.map(img => `• [${img.category.toUpperCase()}] ${img.label}
-  Seção: ${img.suggestedSection} | Alt-text: "${img.alt}" | Link: ${img.url}`).join('\n\n')}
+${extractedImages.length > 0
+  ? extractedImages.map(img => `• [${img.category.toUpperCase()}] ${img.label} (${img.isReal ? 'ORIGINAL DO SITE' : 'REFERÊNCIA'})
+  Seção: ${img.suggestedSection} | Alt-text: "${img.alt}" | URL Exata: ${img.url}`).join('\n\n')
+  : '• Nenhuma URL de imagem extraída automaticamente deste link. Coletar diretamente com o cliente.'}
 
 --------------------------------------------------------------------------------
-5. PLANO DE AÇÃO E MELHORIAS PRIORIZADAS (P1/P2/P3):
+5. PLANO DE AÇÃO E MELHORIAS PRIORIZADAS (MANTENDO IMAGENS E DADOS DO CLIENTE):
 --------------------------------------------------------------------------------
 ${improvements.map((imp, idx) => `
 ### MELHORIA #${idx + 1}: ${imp.title}
@@ -717,9 +745,18 @@ ${megaPrompt10}
     approvalStatus,
     hasCriticalBlocker: criticalBlockers.some(b => b.priority === 'P0'),
     primaryNicheDetected: effectiveNiche,
-    executiveSummary: `O site ${domain} obteve pontuação de ${overallScore}/100 no Master Site Engine 10.0 (${scoreLabel.toUpperCase()}). ${overallScore >= 80 ? 'O site atende aos requisitos essenciais com melhorias recomendadas.' : 'Apresenta gargalos críticos de carregamento móvel, ausência de UVP em 4 segundos e perda substancial de leads no WhatsApp.'}`,
+    executiveSummary: scrapedData
+      ? `O site ${domain} (${finalBusinessName}) obteve ${overallScore}/100 no Master Site Engine 10.0. Foram extraídas ${extractedImages.length} imagens reais e as informações oficiais do cliente para preservação integral em todas as melhorias sugeridas.`
+      : `O site ${domain} obteve ${overallScore}/100 no Master Site Engine 10.0 (${scoreLabel.toUpperCase()}). ${overallScore >= 80 ? 'O site atende aos requisitos essenciais com melhorias recomendadas.' : 'Apresenta gargalos críticos de carregamento móvel, clareza da primeira dobra e conversão no WhatsApp.'}`,
     ownerInfo,
     extractedImages,
+    liveScrapedUsed: Boolean(scrapedData),
+    preservedClientAssetCount: extractedImages.filter((i) => i.isReal).length,
+    siteTitle: scrapedData?.title || undefined,
+    metaDescription: scrapedData?.description || undefined,
+    h1Text: scrapedData?.h1 || undefined,
+    extractedHeadings: scrapedData?.headings,
+    extractedServices: scrapedData?.servicesDetected,
     categories10: {
       design: catDesign,
       seo: catSeo,
@@ -749,13 +786,15 @@ ${megaPrompt10}
       'Ausência de Política de Privacidade e Termos de Uso adequados à LGPD.',
     ],
     positiveHighlights: [
-      `Marca e presença local confirmadas para ${businessName}.`,
-      'Existência de fotos e canais de contato com potencial imediato de conversão.',
+      `Identidade, marca e presença digital confirmadas para ${finalBusinessName}.`,
+      extractedImages.length > 0
+        ? `${extractedImages.length} imagem(ns) real(is) do cliente preservada(s) para reaproveitamento no novo layout.`
+        : 'Estrutura de conteúdo pronta para receber os ativos visuais oficiais do cliente.',
       'Nicho com alta demanda de busca local orgânica no Google.',
     ],
     recommendedImprovements: improvements,
     reengineeringMegaPrompt: megaPrompt10,
-    generatedNewPromptPreview: `Projeto de Reengenharia Master Site Engine 10.0 para ${ownerInfo.businessName} (${effectiveNiche}). Liderado por ${ownerInfo.ownerOrLeaderName}. Arquitetura Astro-First, Tailwind CSS v4, UVP em 4s e WhatsApp ${ownerInfo.whatsapp}.`,
+    generatedNewPromptPreview: `Projeto de Reengenharia Master Site Engine 10.0 para ${ownerInfo.businessName} (${effectiveNiche}), preservando ${extractedImages.length} imagens reais e contatos oficiais (${ownerInfo.whatsapp} | ${ownerInfo.email}).`,
     fullClientMarkdownReport: fullReport,
   };
 }
@@ -896,22 +935,26 @@ export async function fetchPageSpeedAudit(
   };
 }
 
-// Main audit runner that calls backend API if available, with resilient fallback
-export async function auditWebsiteWithMasterPrompt(request: SiteAuditRequest): Promise<SiteAuditReport> {
-  // Always compute base heuristic report first to ensure 100% uptime and resilience
-  const heuristicReport = generateHeuristicSiteAudit(request);
+function isPlaceholderValue(val: string | undefined | null): boolean {
+  if (!val) return true;
+  const trimmed = val.trim();
+  if (!trimmed) return true;
+  return /^(n\/a|não informado|não identificado|confirmar|a confirmar)/i.test(trimmed);
+}
 
-  // Run PageSpeed analysis in parallel
-  let pageSpeedData: PageSpeedAuditData | null = null;
-  try {
-    pageSpeedData = await fetchPageSpeedAudit(request.url, 'mobile');
-  } catch (err) {
+// Main audit runner that calls backend API (scraping live site + optional Gemini) with resilient fallback
+export async function auditWebsiteWithMasterPrompt(request: SiteAuditRequest): Promise<SiteAuditReport> {
+  // Run PageSpeed analysis in parallel while backend scrapes live HTML & audits
+  const pageSpeedPromise = fetchPageSpeedAudit(request.url, 'mobile').catch((err) => {
     console.warn('PageSpeed analysis deferred:', err);
-  }
+    return null;
+  });
+
+  let scrapedData: ClientScrapedSiteData | null = null;
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), 20000);
     const res = await fetch('/api/audit-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -922,28 +965,112 @@ export async function auditWebsiteWithMasterPrompt(request: SiteAuditRequest): P
 
     if (res.ok) {
       const json = await res.json();
+      if (json.scrapedData) {
+        scrapedData = json.scrapedData as ClientScrapedSiteData;
+      }
+
+      const heuristicWithLiveData = generateHeuristicSiteAudit(request, scrapedData);
+      const pageSpeedData = await pageSpeedPromise;
+
       if (json.success && json.report) {
         const rep = json.report;
+
+        // Merge ownerInfo ensuring real scraped client data is never wiped out
+        const mergedOwnerInfo: SiteOwnerInfo = {
+          businessName: !isPlaceholderValue(scrapedData?.businessName)
+            ? (scrapedData!.businessName as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.businessName) ? rep.ownerInfo.businessName : heuristicWithLiveData.ownerInfo.businessName),
+          ownerOrLeaderName: !isPlaceholderValue(scrapedData?.ownerName)
+            ? (scrapedData!.ownerName as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.ownerOrLeaderName) ? rep.ownerInfo.ownerOrLeaderName : heuristicWithLiveData.ownerInfo.ownerOrLeaderName),
+          roleOrCredential: !isPlaceholderValue(scrapedData?.credential)
+            ? (scrapedData!.credential as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.roleOrCredential) ? rep.ownerInfo.roleOrCredential : heuristicWithLiveData.ownerInfo.roleOrCredential),
+          whatsapp: !isPlaceholderValue(scrapedData?.whatsapp)
+            ? (scrapedData!.whatsapp as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.whatsapp) ? rep.ownerInfo.whatsapp : heuristicWithLiveData.ownerInfo.whatsapp),
+          phone: !isPlaceholderValue(scrapedData?.phones?.[0])
+            ? (scrapedData!.phones![0] as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.phone) ? rep.ownerInfo.phone : heuristicWithLiveData.ownerInfo.phone),
+          email: !isPlaceholderValue(scrapedData?.emails?.[0])
+            ? (scrapedData!.emails![0] as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.email) ? rep.ownerInfo.email : heuristicWithLiveData.ownerInfo.email),
+          fullAddress: !isPlaceholderValue(scrapedData?.address)
+            ? (scrapedData!.address as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.fullAddress) ? rep.ownerInfo.fullAddress : heuristicWithLiveData.ownerInfo.fullAddress),
+          cityState: !isPlaceholderValue(scrapedData?.cityState)
+            ? (scrapedData!.cityState as string)
+            : (!isPlaceholderValue(rep.ownerInfo?.cityState) ? rep.ownerInfo.cityState : heuristicWithLiveData.ownerInfo.cityState),
+          cnpj: scrapedData?.cnpj || rep.ownerInfo?.cnpj || heuristicWithLiveData.ownerInfo.cnpj,
+          instagram: scrapedData?.instagram || rep.ownerInfo?.instagram || heuristicWithLiveData.ownerInfo.instagram,
+          facebook: scrapedData?.facebook || rep.ownerInfo?.facebook || heuristicWithLiveData.ownerInfo.facebook,
+          linkedin: scrapedData?.linkedin || rep.ownerInfo?.linkedin || heuristicWithLiveData.ownerInfo.linkedin,
+          youtube: scrapedData?.youtube || rep.ownerInfo?.youtube || heuristicWithLiveData.ownerInfo.youtube,
+          bioOrAboutSummary: !isPlaceholderValue(rep.ownerInfo?.bioOrAboutSummary)
+            ? rep.ownerInfo.bioOrAboutSummary
+            : heuristicWithLiveData.ownerInfo.bioOrAboutSummary,
+        };
+
+        // Strictly preserve all real scraped image URLs and prevent stock URL replacement
+        const realScrapedImgs = heuristicWithLiveData.extractedImages.filter((i) => i.isReal);
+        let mergedImages: ExtractedSiteImage[] = heuristicWithLiveData.extractedImages;
+        if (realScrapedImgs.length > 0) {
+          const scrapedMap = new Map(realScrapedImgs.map((img) => [img.url, img]));
+          const geminiImages: ExtractedSiteImage[] = Array.isArray(rep.extractedImages) ? rep.extractedImages : [];
+          const keptFromGemini = geminiImages
+            .filter((g) => g?.url && scrapedMap.has(g.url))
+            .map((g) => ({ ...scrapedMap.get(g.url)!, ...g, isReal: true }));
+          const seen = new Set(keptFromGemini.map((i) => i.url));
+          mergedImages = [
+            ...keptFromGemini,
+            ...realScrapedImgs.filter((r) => !seen.has(r.url)),
+          ];
+        } else if (Array.isArray(rep.extractedImages) && rep.extractedImages.length > 0) {
+          mergedImages = rep.extractedImages.filter(
+            (img: ExtractedSiteImage) => img?.url && !/unsplash\.com|pexels\.com/i.test(img.url)
+          );
+        }
+
+        // Ensure Mega Prompt ALWAYS includes the explicit preservation block with all real client image URLs & contacts
+        const preservationSection = buildClientPreservationBlock(mergedOwnerInfo, mergedImages, scrapedData);
+        const baseMegaPrompt: string = rep.reengineeringMegaPrompt || heuristicWithLiveData.reengineeringMegaPrompt;
+        const missingAnyImageInPrompt = mergedImages.some((img) => !baseMegaPrompt.includes(img.url));
+        const finalMegaPrompt =
+          missingAnyImageInPrompt || !baseMegaPrompt.includes('PRESERVAÇÃO INTEGRAL')
+            ? `${baseMegaPrompt}\n\n${preservationSection}`
+            : baseMegaPrompt;
+
         return {
-          ...heuristicReport,
+          ...heuristicWithLiveData,
           ...rep,
           pageSpeedData: pageSpeedData || rep.pageSpeedData || undefined,
-          ownerInfo: {
-            ...heuristicReport.ownerInfo,
-            ...(rep.ownerInfo || {}),
-          },
-          extractedImages: (rep.extractedImages && Array.isArray(rep.extractedImages) && rep.extractedImages.length > 0)
-            ? rep.extractedImages
-            : heuristicReport.extractedImages,
+          ownerInfo: mergedOwnerInfo,
+          extractedImages: mergedImages,
+          liveScrapedUsed: Boolean(scrapedData) || Boolean(rep.liveScrapedUsed),
+          preservedClientAssetCount: mergedImages.filter((i) => i.isReal).length,
+          siteTitle: scrapedData?.title || rep.siteTitle || undefined,
+          metaDescription: scrapedData?.description || rep.metaDescription || undefined,
+          h1Text: scrapedData?.h1 || rep.h1Text || undefined,
+          extractedHeadings: scrapedData?.headings || rep.extractedHeadings,
+          extractedServices: scrapedData?.servicesDetected || rep.extractedServices,
+          reengineeringMegaPrompt: finalMegaPrompt,
         };
       }
+
+      // Heuristic path enriched with live scraped real images and client contacts!
+      return {
+        ...heuristicWithLiveData,
+        pageSpeedData: pageSpeedData || undefined,
+      };
     }
   } catch (err) {
     console.warn('API audit fallback to heuristic engine:', err);
   }
 
+  const pageSpeedData = await pageSpeedPromise;
+  const fallbackReport = generateHeuristicSiteAudit(request, scrapedData);
   return {
-    ...heuristicReport,
+    ...fallbackReport,
     pageSpeedData: pageSpeedData || undefined,
   };
 }

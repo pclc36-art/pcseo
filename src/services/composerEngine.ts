@@ -278,7 +278,7 @@ ${extracted.benefitsAndTransformation.length > 0 && extracted.benefitsAndTransfo
 
 --- DIREÇÃO FOTOGRÁFICA & ASSETS VISUAIS:
 ${(extracted.imageAssets && extracted.imageAssets.length > 0)
-  ? extracted.imageAssets.map((a, i) => `  ${i + 1}. [ASSET REAL / ${a.category.toUpperCase()}] "${a.name}" — Alvo: ${a.sectionTarget} | Alt-text semântico: "${a.altText}" | Tipo: ${a.isRealClientPhoto ? 'Foto Real Verificada' : 'Referência'}`).join('\n')
+  ? extracted.imageAssets.map((a, i) => `  ${i + 1}. [ASSET REAL / ${a.category.toUpperCase()}] "${a.name}" — Alvo: ${a.sectionTarget} | Alt-text semântico: "${a.altText}" | Tipo: ${a.isRealClientPhoto ? 'Foto Real Verificada (MANTER EXATA)' : 'Referência'}${a.url ? ` | URL EXATA DO CLIENTE: ${a.url}` : ''}`).join('\n')
   : '  * [ASSETS FOTOGRÁFICOS]: Nenhuma foto física fornecida previamente. Proibido usar banco de imagens gratuito genérico. Adotar os prompts fotográficos especificados abaixo.'}
 - Diretrizes de Estilo: ${extracted.photographicDirection?.styleGuidelines || 'Fotografia editorial com iluminação natural suave, profundidade de campo rasa e foco na autenticidade humana.'}
 - Iluminação e Clima: ${extracted.photographicDirection?.lightingAndMood || 'Luz natural limpa, 5000K, sombras suaves sem iluminação hospitalar.'}
@@ -291,6 +291,20 @@ ${extracted.photographicDirection.recommendedPrompts.map((p, i) => `  ${i + 1}. 
 ${extracted.socialProof.hasRealProof
   ? `  * Depoimentos / Avaliações: ${extracted.socialProof.testimonials.join('; ')}`
   : '  * [REGRA DE VERACIDADE: Sem depoimentos verificados fornecidos até o momento. Proibido inventar depoimentos fictícios. Estruturar espaço reservado com a etiqueta [AVALIAÇÕES REAIS DE CLIENTES]].'}
+
+--- IDENTIDADE DE CONVERSÃO, HISTÓRIA, POLÍTICAS & OPERAÇÃO CONFIRMADA:
+- Headline / Promessa Principal (Hero): ${extracted.heroHeadline || extracted.benefitsAndTransformation[0] || 'Construir com foco no diferencial principal confirmado'}
+- Subheadline / Apoio Hero: ${extracted.heroSubheadline || 'Detalhar proposta de valor e rapidez no atendimento'}
+- Texto Exato do Botão Principal (CTA): ${extracted.heroCtaText || (extracted.hasWhatsApp ? 'Falar no WhatsApp Agora' : 'Solicitar Atendimento')}
+- História da Marca & Formação da Equipe: ${extracted.brandStory || 'Utilizar credenciais e diferenciais confirmados sem inventar datas fictícias'}
+- Política de Preços, Planos, Convênios & Pagamento: ${extracted.pricingAndPayment || 'Apresentar condições comerciais transparentes conforme briefing'}
+- Garantias & Compromissos de Qualidade: ${extracted.guaranteesAndPolicies || 'Destacar transparência, segurança e acompanhamento pós-atendimento'}
+- Horários de Atendimento & SLA de Resposta: ${extracted.openingHours || 'Informar horário comercial padrão ou confirmar com cliente'}
+- Inventário de Logotipo, Fotos Reais & Vídeos: ${extracted.availableMediaAssets || 'Seguir direção fotográfica definida abaixo'}
+- Palavras-Chave & Bairros/Cidades para SEO Local: ${extracted.seoKeywords && extracted.seoKeywords.length > 0 ? extracted.seoKeywords.join(', ') : extracted.serviceRegion}
+${extracted.processSteps && extracted.processSteps.length > 0 ? `\n--- PASSO A PASSO DO ATENDIMENTO / ENTREGA ("COMO FUNCIONA"):\n${extracted.processSteps.map((s, i) => `  Passo ${i + 1}: ${s}`).join('\n')}` : ''}
+${extracted.faqItems && extracted.faqItems.length > 0 ? `\n--- PERGUNTAS FREQUENTES (FAQ REAL DO CLIENTE):\n${extracted.faqItems.map((f) => `  * ${f}`).join('\n')}` : ''}
+${extracted.rawBriefingSummary ? `\n--- BRIEFING INTEGRAL DO CLIENTE (TODAS AS RESPOSTAS ESPECÍFICAS DO NICHO — USO OBRIGATÓRIO NA COPY E SEÇÕES):\n${extracted.rawBriefingSummary}` : ''}
 
 ${nicheGuidance}
 
@@ -319,54 +333,70 @@ omitir código, criar pseudocódigo ou utilizar templates genéricos:
 ${masterPromptContent}
 
 ================================================================================
-3. ROTEIRO DE DOBRAS & ESTRUTURA DA PÁGINA REQUISITADA
+3. ROTEIRO DE DOBRAS & ESTRUTURA COMPLETA E DETALHADA DA PÁGINA REQUISITADA
 ================================================================================
-Construa o projeto aplicando o roteiro abaixo adaptado com os dados reais de ${extracted.companyName}:
+ATENÇÃO: NÃO gere uma landing page curta, rasa ou resumida. Construa uma página completa,
+profunda e rica em informações úteis usando TODOS os dados fornecidos no briefing de ${extracted.companyName}:
 
 DOBRA 1: HEADER & NAVEGAÇÃO
 - Logotipo da marca ${extracted.companyName}.
-- Links de âncora suaves para as seções essenciais.
-- CTA direto no topo: "${extracted.hasWhatsApp ? 'Falar no WhatsApp' : 'Solicitar Contato'}".
+- Links de âncora suaves para as seções essenciais (Serviços, Como Funciona, Sobre Nós, Depoimentos, FAQ, Contato).
+- CTA direto no topo: "${extracted.heroCtaText || (extracted.hasWhatsApp ? 'Falar no WhatsApp' : 'Solicitar Contato')}".
 
 DOBRA 2: HERO SECTION DE ALTA CONVERSÃO
 - Eyebrow tag: "${extracted.niche}".
-- Headline com proposta de valor clara focada em: ${extracted.differentials[0] || 'Excelência e Confiança'}.
-- Subheadline detalhando como o público (${extracted.targetAudience.slice(0, 80)}...) alcança os resultados.
-- Botão de CTA proeminente com microcopy redutor de atrito.
-- Bloco de prova social imediata (${extracted.socialProof.hasRealProof ? 'Avaliações reais' : 'Garantia e Credenciais'}).
+- Headline H1 baseada na promessa confirmada: ${extracted.heroHeadline || extracted.differentials[0] || 'Excelência e Confiança'}.
+- Subheadline explicativa: ${extracted.heroSubheadline || `Como ${extracted.companyName} resolve o problema de ${extracted.targetAudience.slice(0, 100)}`}.
+- Botão de CTA proeminente ("${extracted.heroCtaText || (extracted.hasWhatsApp ? 'Falar no WhatsApp' : 'Solicitar Contato')}") com microcopy redutor de atrito (${extracted.openingHours ? `Atendimento: ${extracted.openingHours.slice(0, 90)}` : 'Resposta rápida e atendimento personalizado'}).
+- Barra de confiança imediata (${extracted.mandatoryContent[0] !== 'Não informado' ? extracted.mandatoryContent.join(' • ') : 'Atendimento Especializado'} • ${extracted.socialProof.hasRealProof ? 'Avaliações reais verificadas' : 'Qualidade e Transparência'}).
 
-DOBRA 3: DORES DO CLIENTE & AGITAÇÃO EMPÁTICA
-- Espelhamento das dores reais (${extracted.audiencePainPoints.slice(0, 3).join(', ')}).
-- Demonstração clara de por que os métodos genéricos de concorrentes falham.
+DOBRA 3: DORES DO CLIENTE & IDENTIFICAÇÃO EMPÁTICA
+- Espelhamento profundo das dores reais informadas no briefing:
+${formattedPains}
+- Demonstração clara de por que soluções genéricas falham e qual é a consequência de adiar a solução.
 
-DOBRA 4: SOLUÇÃO & DIFERENCIAIS
-- Apresentação da metodologia ou infraestrutura exclusiva de ${extracted.companyName}.
+DOBRA 4: VITRINE COMPLETA DE SERVIÇOS, PRODUTOS & OFERTA CARRO-CHEFE
+- Cards detalhados e completos (com nome, o que inclui, benefícios e chamada individual para WhatsApp/contato) para cada item confirmado:
+${formattedServices}
+- Bloco de transparência comercial, valores/planos/convênios e formas de pagamento: ${extracted.pricingAndPayment || 'Orçamento personalizado e condições facilitadas'}.
+
+DOBRA 5: COMO FUNCIONA NA PRÁTICA (PASSO A PASSO DO ATENDIMENTO)
+${extracted.processSteps && extracted.processSteps.length > 0
+  ? extracted.processSteps.map((step, idx) => `- Passo ${idx + 1}: ${step}`).join('\n')
+  : `- Passo 1: Primeiro contato rápido pelo botão de WhatsApp ou formulário.\n- Passo 2: Análise personalizada da sua necessidade.\n- Passo 3: Execução com acompanhamento próximo e entrega segura.`}
+
+DOBRA 6: DIFERENCIAIS EXCLUSIVOS DO NICHO, INFRAESTRUTURA & GARANTIAS
+- Incorporar integralmente os detalhes técnicos/operacionais exclusivos do nicho declarados no briefing completo acima.
 - Destaque para os diferenciais confirmados:
 ${formattedDiffs}
+- Garantias e políticas de segurança: ${extracted.guaranteesAndPolicies || 'Compromisso integral com qualidade e transparência'}.
 
-DOBRA 5: VITRINE DE SERVIÇOS
-- Cartões com os serviços específicos confirmados:
-${formattedServices}
+DOBRA 7: SOBRE NÓS, HISTÓRIA & AUTORIDADE TÉCNICA
+- História real da marca/fundador e equipe: ${extracted.brandStory || `Apresentar a trajetória e especialização de ${extracted.companyName}`}.
+- Credenciais e registros obrigatórios: ${extracted.mandatoryContent.join('; ')}.
 
-DOBRA 6: PROVA SOCIAL & AUTORIDADE
-- Apresentação dos casos reais, credenciais (${extracted.mandatoryContent.join('; ')}) e tempo de experiência.
+DOBRA 8: PROVA SOCIAL, NÚMEROS & DEPOIMENTOS REAIS
+- Números reais de impacto e avaliações verificadas: ${extracted.socialProof.hasRealProof ? extracted.socialProof.testimonials.join('; ') : 'Espaço reservado para avaliações reais verificadas [AVALIAÇÕES REAIS DE CLIENTES]'}.
 
-DOBRA 7: LOCALIZAÇÃO OU ATENDIMENTO DIGITAL
-${extracted.hasPhysicalLocation ? `- Bloco de endereço presencial na ${extracted.address} com mapa interativo.` : '- Bloco destacando a comodidade do atendimento 100% digital e seguro.'}
+DOBRA 9: LOCALIZAÇÃO / ÁREA DE COBERTURA & HORÁRIOS
+${extracted.hasPhysicalLocation ? `- Bloco de endereço presencial na ${extracted.address} com mapa interativo e rota.` : `- Bloco destacando a comodidade do atendimento 100% digital/regional em ${extracted.serviceRegion || 'todo o Brasil'}.`}
+- Horários de atendimento e tempo de resposta: ${extracted.openingHours || 'Atendimento em horário comercial com resposta ágil'}.
 
-DOBRA 8: FAQ ESTRATÉGICO
-- Mínimo de 5 perguntas frequentes com accordion acessível (destruindo dúvidas de contratação, segurança, prazos e garantia).
+DOBRA 10: FAQ COMPLETO & QUEBRA DE OBJEÇÕES
+${extracted.faqItems && extracted.faqItems.length > 0
+  ? extracted.faqItems.map((item) => `- ${item}`).join('\n')
+  : '- Mínimo de 5 perguntas frequentes com accordion acessível (cobrindo preço/orçamento, prazo, como funciona, garantias e atendimento).'}
 
-DOBRA 9: CTA FINAL DE FECHAMENTO
-- Chamada final irrecusável orientando o próximo passo imediato.
+DOBRA 11: CTA FINAL DE FECHAMENTO & FORMULÁRIO/CONTATO
+- Chamada final irrecusável com o botão "${extracted.heroCtaText || 'Falar no WhatsApp Agora'}" e resumo da porta de entrada.
 
-DOBRA 10: RODAPÉ CORPORATIVO & COMPLIANCE
-- Dados cadastrais de ${extracted.companyName}, registro profissional, links para Termos e Privacidade (LGPD) e direitos autorais.
+DOBRA 12: RODAPÉ CORPORATIVO, SEO LOCAL & COMPLIANCE LGPD
+- Dados cadastrais de ${extracted.companyName}, registro profissional, horários, links de redes sociais, links para Termos e Privacidade (LGPD), e Schema.org enriquecido com palavras-chave locais (${extracted.seoKeywords?.slice(0, 6).join(', ') || extracted.niche}).
 
 ================================================================================
 4. INSTRUÇÃO FINAL DE GERAÇÃO
 ================================================================================
-Execute a criação integral do projeto agora. Não retorne resumos, esboços vazios ou marcações incompletas com "insira o código aqui". Escreva os textos finais persuasivos em português do Brasil impecável, código robusto, acessível e responsivo, pronto para publicação profissional.
+Execute a criação integral do projeto agora. NÃO crie uma landing page curta ou genérica: utilize todas as 12 dobras acima e todos os detalhes fornecidos no briefing completo do cliente. Escreva textos finais completos, profundos e persuasivos em português do Brasil impecável, código robusto, acessível e responsivo, pronto para publicação profissional.
 `;
 
   // Automated 16-Point Quality Validation (including Astro-First module)

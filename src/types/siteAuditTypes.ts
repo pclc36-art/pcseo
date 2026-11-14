@@ -50,6 +50,7 @@ export interface SiteOwnerInfo {
   instagram?: string; // e.g. "@clinica.dr.lucas"
   facebook?: string;
   linkedin?: string;
+  youtube?: string;
   bioOrAboutSummary: string; // Resumo do perfil/história da empresa ou profissional
 }
 
@@ -78,6 +79,13 @@ export interface SiteAuditReport {
   executiveSummary: string;
   ownerInfo: SiteOwnerInfo;
   extractedImages: ExtractedSiteImage[];
+  liveScrapedUsed?: boolean;
+  preservedClientAssetCount?: number;
+  siteTitle?: string;
+  metaDescription?: string;
+  h1Text?: string;
+  extractedHeadings?: string[];
+  extractedServices?: string[];
   // 8 Categorias Oficiais do MASTER SITE ENGINE 10.0 com Pesos Oficiais
   categories10: {
     design: MetricPillarScore; // Peso: 20%
