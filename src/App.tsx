@@ -8,6 +8,7 @@ import { ProjectsListView } from './components/ProjectsListView';
 import { MasterPromptManager } from './components/MasterPromptManager';
 import { SettingsModal } from './components/SettingsModal';
 import { GbpProHub } from './components/gbp/GbpProHub';
+import { DedicatedQuestionnairesHub } from './components/questionnaires/DedicatedQuestionnairesHub';
 import { AdminAreaView } from './components/admin/AdminAreaView';
 import { AdminGatekeeperView } from './components/admin/AdminGatekeeperView';
 import { SiteAuditorView } from './components/SiteAuditorView';
@@ -333,10 +334,12 @@ export default function App() {
         return { title: 'Otimizador de Mídias para Sites & LPs', badge: 'WebP, Vídeos & PageSpeed 100' };
       case 'site_auditor':
         return { title: 'Auditor de Sites pelo Prompt Mestre', badge: 'Master Site Engine 9.0 & Otimização' };
+      case 'site_questionnaires':
+        return { title: 'Questionários — Sites & Landing Pages', badge: '34 Nichos p/ Prompt Mestre' };
       case 'questionnaires':
-        return { title: 'Central de Questionários', badge: 'Sites & LPs + Google Meu Negócio' };
+        return { title: 'Questionários — Empresas Google', badge: '34 Nichos p/ Google Meu Negócio' };
       case 'gbp_pro':
-        return { title: 'Google Business Profile Pro', badge: '33 Nichos, Auditoria & Dossiê 100/100' };
+        return { title: 'Google Business Profile Pro', badge: '34 Nichos, Auditoria & Dossiê 100/100' };
       case 'projects':
         return { title: 'Meus Projetos de Sites', badge: `${projects.length} Cadastrados` };
       case 'master_prompt':
@@ -470,18 +473,32 @@ export default function App() {
               <span>Auditor</span>
             </button>
 
-            {/* Questionários 33 Nichos (visível a partir de md: 768px) */}
+            {/* Questionários Sites & LPs (visível a partir de md: 768px) */}
+            <button
+              onClick={() => navigateToTab('site_questionnaires')}
+              className={`hidden md:flex px-2.5 py-1.5 rounded-xl text-xs font-semibold items-center gap-1.5 transition-colors cursor-pointer ${
+                activeTab === 'site_questionnaires'
+                  ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-cyan-300 hover:bg-slate-800'
+              }`}
+              title="Questionários para Sites & Landing Pages (Prompt Mestre)"
+            >
+              <FileQuestion className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Questionários LPs</span>
+            </button>
+
+            {/* Questionários Empresas Google (visível a partir de lg: 1024px) */}
             <button
               onClick={() => navigateToTab('questionnaires')}
-              className={`hidden md:flex px-2.5 py-1.5 rounded-xl text-xs font-semibold items-center gap-1.5 transition-colors ${
+              className={`hidden lg:flex px-2.5 py-1.5 rounded-xl text-xs font-semibold items-center gap-1.5 transition-colors cursor-pointer ${
                 activeTab === 'questionnaires'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-900 border border-slate-800 text-indigo-300 hover:bg-slate-800'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-emerald-300 hover:bg-slate-800'
               }`}
-              title="Super Questionários (33 Nichos)"
+              title="Questionários para Google Meu Negócio"
             >
-              <FileQuestion className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Questionários (33)</span>
+              <FileQuestion className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Questionários GBP</span>
             </button>
 
             {/* GBP Pro (visível a partir de lg: 1024px) */}
@@ -554,14 +571,16 @@ export default function App() {
             />
           )}
 
-          {/* DEDICATED 33 QUESTIONNAIRES VIEW (INSIDE GBP PRO AREA) */}
-          {activeTab === 'questionnaires' && (
-            <GbpProHub
+          {/* DEDICATED QUESTIONNAIRES: SITES & LANDING PAGES (FOR MASTER PROMPT) */}
+          {activeTab === 'site_questionnaires' && (
+            <DedicatedQuestionnairesHub
               onNotify={showToast}
               onBack={handleBack}
-              initialSubTab="questionnaires"
-              initialQuestionnaire={pendingGbpQuestionnaire}
-              onClearInitialQuestionnaire={() => setPendingGbpQuestionnaire(null)}
+              initialMode="sites"
+              onGenerateDossierFromQuestionnaire={(data) => {
+                setPendingGbpQuestionnaire(data);
+                navigateToTab('gbp_pro');
+              }}
               onCreateSiteProject={(briefing, clientName, projectName) => {
                 setNewProjectInitialValues({
                   name: projectName,
@@ -571,7 +590,38 @@ export default function App() {
                   hostingTarget: 'hostinger_static',
                   preferredFramework: 'Astro + Tailwind CSS (Padrão Prompt Mestre)',
                   questionnaire: briefing,
-                  additionalNotes: `Questionário estratégico do nicho respondido pelo cliente.`,
+                  additionalNotes: `Questionário do cliente pronto para unir ao Prompt Mestre.`,
+                });
+                navigateToTab('new_project');
+                showToast(
+                  'Questionário Carregado no Novo Projeto!',
+                  `Formulário preenchido com as respostas de ${projectName}.`,
+                  'success'
+                );
+              }}
+            />
+          )}
+
+          {/* DEDICATED QUESTIONNAIRES: GOOGLE MEU NEGÓCIO (EMPRESAS GOOGLE) */}
+          {activeTab === 'questionnaires' && (
+            <DedicatedQuestionnairesHub
+              onNotify={showToast}
+              onBack={handleBack}
+              initialMode="gbp"
+              onGenerateDossierFromQuestionnaire={(data) => {
+                setPendingGbpQuestionnaire(data);
+                navigateToTab('gbp_pro');
+              }}
+              onCreateSiteProject={(briefing, clientName, projectName) => {
+                setNewProjectInitialValues({
+                  name: projectName,
+                  clientName: clientName,
+                  projectType: 'landing_page',
+                  targetPlatform: 'ai_site_builder',
+                  hostingTarget: 'hostinger_static',
+                  preferredFramework: 'Astro + Tailwind CSS (Padrão Prompt Mestre)',
+                  questionnaire: briefing,
+                  additionalNotes: `Questionário do cliente pronto para unir ao Prompt Mestre.`,
                 });
                 navigateToTab('new_project');
                 showToast(

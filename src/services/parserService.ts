@@ -120,6 +120,7 @@ export function parseQuestionnaireHeuristic(
 
   // 3. Services
   const servicesRaw = findAnswerTo([
+    /liste\s+de\s+\d+\s+a\s+\d+\s+principais/i,
     /principais\s+serviços,\s*tratamentos\s+ou\s+produtos|causas\s+ou\s+serviços\s+jurídicos|principais\s+serviços|serviços(?:\s+oferecidos)?|o\s+que\s+oferece/i,
     /produtos|soluções|cardápio/i,
   ]);
@@ -147,7 +148,7 @@ export function parseQuestionnaireHeuristic(
 
   // 5. Physical Location / Address
   const addressRaw = findAnswerTo([
-    /onde\s+o\s+cliente\s+é\s+atendido|atende\s+presencialmente|endereço|localização|onde\s+fica|onde\s+é\s+realizado/i,
+    /onde\s+o\s+cliente\s+é\s+atendido|atende\s+presencialmente|endereço|localização|onde\s+fica|onde\s+é\s+realizado|cidade-base|escritório\s+físico/i,
     /onde\s+atendem/i,
   ]);
 
@@ -306,7 +307,7 @@ export function parseQuestionnaireHeuristic(
 
   // 17. Social Proof
   const socialProofRaw = findAnswerTo([
-    /provas?\s+socia(?:l|is)|depoimentos|avaliações\s+no\s+google|resultados,\s*números/i,
+    /números\s+reais\s+ou\s+provas|provas?\s+socia(?:l|is)|depoimentos|avaliações\s+no\s+google|resultados,\s*números/i,
   ]);
   const hasRealProof = socialProofRaw && !/ainda\s+não|não\s+temos|nenhum/i.test(socialProofRaw) ? true : false;
   const testimonials: string[] = [];
@@ -368,7 +369,7 @@ export function parseQuestionnaireHeuristic(
   const heroCtaText = ctaMatch ? ctaMatch[1].trim() : '';
 
   const pricingAndPayment = findAnswerTo([
-    /valores,\s*planos|política\s+de\s+preços|condições\s+comerciais|formas\s+de\s+pagamento|honorários|convênios/i,
+    /valores,\s*planos|política\s+de\s+preços|condições\s+comerciais|formas\s+de\s+pagamento|honorários|convênios|facilidades\s+vocês\s+oferecem\s+na\s+negociação|ingressos\s+e\s+locação|orçamentos\s+e\s+pagamentos|propostas\s+e\s+pagamentos|contribuição\/dízimos|podem\s+contribuir|diárias\s+e\s+formas/i,
   ]);
 
   const processRaw = findAnswerTo([
@@ -394,7 +395,7 @@ export function parseQuestionnaireHeuristic(
   ]);
 
   const faqRaw = findAnswerTo([
-    /dúvidas(?:\s+mais)?\s+frequentes|dúvidas\s+que\s+(?:os\s+)?(?:clientes|pacientes|alunos|hóspedes)|perguntas\s+frequentes|\(faq\)/i,
+    /perguntas\s+que\s+(?:seus|os)\s+|dúvidas(?:\s+mais)?\s+frequentes|dúvidas\s+que\s+(?:os\s+)?(?:clientes|pacientes|alunos|hóspedes)|perguntas\s+frequentes|\(faq\)/i,
   ]);
   const faqItems = faqRaw
     ? faqRaw

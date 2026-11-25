@@ -132,7 +132,7 @@ const hotelPousada = buildGbpRankingTemplate({
   },
   customQuestion2: {
     section: 'Acomodações, Comodidades & Reservas Diretas',
-    question: 'Qual a distância até o centro ou principais atrações da região? A pousada/hotel aceita pets (pet friendly) e possui motor de reservas próprio ou fecha pelo WhatsApp?',
+    question: 'Qual a distância até o centro ou principais atrações da região? A pousada/hotel aceita pets e as reservas são feitas por sistema online próprio ou direto pelo WhatsApp?',
     placeholder: 'Ex: A 6 min do centro turístico e trilhas; aceitamos pets de pequeno porte com jardim cercado; reserva imediata pelo WhatsApp sem comissão de app.',
     helperText: 'Direciona o hóspede para reservar direto com você sem pagar 15–20% para Booking/Expedia.',
     sampleAnswer: 'Estamos a 6 minutos do centro gastronômico de Capivari; somos Pet Friendly para cães até 12 kg com área verde; reserva direta sem comissão pelo WhatsApp com melhor tarifa garantida.',
@@ -282,7 +282,7 @@ const ongInstituto = buildGbpRankingTemplate({
   },
   customQuestion2: {
     section: 'Transparência, Impacto & Formas de Apoiar',
-    question: 'Quais são os canais exatos para Doar Agora (chave Pix oficial CNPJ, link recorrente) e como uma pessoa ou empresa se cadastra como Voluntária ou Parceira ESG?',
+    question: 'Quais são os canais exatos para Doar Agora (chave Pix oficial CNPJ, link recorrente) e como uma pessoa ou empresa se cadastra como Voluntária ou Empresa Parceira?',
     placeholder: 'Ex: Chave Pix CNPJ 12.345.678/0001-90 + formulário rápido no site para cadastro de voluntários e empresas patrocinadoras.',
     helperText: 'Configura os dois principais botões de conversão da ONG: "Quero Doar" e "Ser Voluntário".',
     sampleAnswer: 'Doações instantâneas pela Chave Pix CNPJ 12.345.678/0001-90 (cópia em 1 clique) ou apadrinhamento mensal; cadastro simples de voluntários (aulas, eventos, arrecadações) e canal direto para patrocínio empresarial ESG.',

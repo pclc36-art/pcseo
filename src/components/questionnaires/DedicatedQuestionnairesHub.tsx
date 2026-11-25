@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   HelpCircle,
   Sparkles,
@@ -47,6 +47,7 @@ interface DedicatedQuestionnairesHubProps {
   onCreateSiteProject?: (briefing: string, clientName: string, projectName: string) => void;
   onBack?: () => void;
   initialMode?: 'sites' | 'gbp';
+  lockedMode?: 'sites' | 'gbp';
 }
 
 export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProps> = ({
@@ -55,12 +56,21 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
   onCreateSiteProject,
   onBack,
   initialMode = 'sites',
+  lockedMode,
 }) => {
   // State: mode ('sites' | 'gbp') & selected template (null = catalog, or specific template id)
-  const [questionnaireMode, setQuestionnaireMode] = useState<'sites' | 'gbp'>(initialMode);
+  const [questionnaireMode, setQuestionnaireMode] = useState<'sites' | 'gbp'>(lockedMode || initialMode);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [searchCatalogFilter, setSearchCatalogFilter] = useState('');
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('all');
+
+  useEffect(() => {
+    const nextMode = lockedMode || initialMode;
+    setQuestionnaireMode(nextMode);
+    setActiveTemplateId(null);
+    setSelectedCategoryTab('all');
+    setSearchCatalogFilter('');
+  }, [initialMode, lockedMode]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     saude_bem_estar: true,
     servicos_profissionais: true,
@@ -414,6 +424,9 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
         'escritorio_advocacia',
         'arquitetura_interiores',
         'contabilidade_contabil',
+        'consultoria_coaching',
+        'construtora_eng',
+        'imobiliaria_corretor',
       ].includes(baseId)
     ) {
       return 'Escritório / Profissional';
@@ -533,39 +546,59 @@ export const DedicatedQuestionnairesHub: React.FC<DedicatedQuestionnairesHubProp
         )}
 
         {/* Mode Switcher: Sites/LP vs Google Meu Negócio */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 rounded-2xl bg-slate-900/90 border border-slate-800 w-fit">
-          <button
-            type="button"
-            onClick={() => {
-              setQuestionnaireMode('sites');
-              setSelectedCategoryTab('all');
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              isSitesMode
-                ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg shadow-cyan-600/25'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
-            }`}
-          >
-            <Globe className="w-4 h-4" />
-            <span>Sites & Landing Pages ({SITE_QUESTIONNAIRES.length})</span>
-          </button>
+        {!lockedMode && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2 rounded-2xl bg-slate-900/90 border border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setQuestionnaireMode('sites');
+                setSelectedCategoryTab('all');
+              }}
+              className={`px-4 py-3 rounded-xl text-left flex items-center gap-3 transition-all cursor-pointer ${
+                isSitesMode
+                  ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg shadow-cyan-600/25'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isSitesMode ? 'bg-white/15' : 'bg-slate-800'}`}>
+                <Globe className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-bold truncate">
+                  Sites & Landing Pages ({SITE_QUESTIONNAIRES.length} nichos)
+                </div>
+                <div className={`text-[11px] truncate ${isSitesMode ? 'text-cyan-100' : 'text-slate-500'}`}>
+                  Perguntas fáceis p/ unir ao Prompt Mestre
+                </div>
+              </div>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setQuestionnaireMode('gbp');
-              setSelectedCategoryTab('all');
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              !isSitesMode
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/25'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            <span>Google Meu Negócio ({GBP_QUESTIONNAIRES.length})</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                setQuestionnaireMode('gbp');
+                setSelectedCategoryTab('all');
+              }}
+              className={`px-4 py-3 rounded-xl text-left flex items-center gap-3 transition-all cursor-pointer ${
+                !isSitesMode
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/25'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${!isSitesMode ? 'bg-white/15' : 'bg-slate-800'}`}>
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-bold truncate">
+                  Empresas Google / Maps ({GBP_QUESTIONNAIRES.length} nichos)
+                </div>
+                <div className={`text-[11px] truncate ${!isSitesMode ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  Perguntas p/ criar e melhorar perfis no Google
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Hero Header */}
         <div

@@ -4,6 +4,7 @@
 // Strictly formatted WITHOUT asterisks (*), WITHOUT hand pointers (👉), and WITHOUT helper prefixes.
 
 import { QuestionnaireTemplate } from '../data/questionnaires';
+import { getNicheWorkplaceProfile, ofPlace } from '../data/questionnaires/helper';
 
 export const TARGET_WHATSAPP_NUMBER = '5586994988349';
 export const TARGET_WHATSAPP_DISPLAY = '(86) 99498-8349';
@@ -34,12 +35,32 @@ function getClientHeaderFields(template: QuestionnaireTemplate): ClientHeaderFie
         businessExportLabel: 'Escritório',
       };
     case 'arquitetura_interiores':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Arq. Sofia Almeida',
+        businessLabel: 'Nome do Escritório de Arquitetura:',
+        businessExportLabel: 'Escritório',
+      };
     case 'contabilidade_contabil':
       return {
         clientLabel: 'Seu Nome Completo:',
         clientPlaceholder: 'Ex: Roberto Alves',
-        businessLabel: 'Nome do Escritório:',
+        businessLabel: 'Nome do Escritório de Contabilidade:',
         businessExportLabel: 'Escritório',
+      };
+    case 'consultoria_coaching':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Ricardo Mendes',
+        businessLabel: 'Nome do Escritório / Consultoria:',
+        businessExportLabel: 'Escritório',
+      };
+    case 'construtora_eng':
+      return {
+        clientLabel: 'Seu Nome Completo:',
+        clientPlaceholder: 'Ex: Eng. Marcos Ribeiro',
+        businessLabel: 'Nome da Construtora / Escritório de Engenharia:',
+        businessExportLabel: 'Escritório / Construtora',
       };
     case 'medico_individual':
     case 'fisioterapeuta':
@@ -171,13 +192,15 @@ function getClientHeaderFields(template: QuestionnaireTemplate): ClientHeaderFie
 
 export function generateClientQuestionnaireHtml(template: QuestionnaireTemplate): string {
   const headerFields = getClientHeaderFields(template);
+  const profile = getNicheWorkplaceProfile(template.id);
+  const doLocal = ofPlace(profile);
   const isGbp = template.targetTool === 'gbp_pro';
   const badgeText = isGbp
     ? 'Questionário • Perfil no Google Meu Negócio'
     : 'Questionário • Criação de Site / Landing Page';
   const introEnding = isGbp
-    ? 'Responda com informações reais da sua empresa para criarmos e configurarmos seu perfil no Google Maps.'
-    : 'Responda com informações reais do seu negócio para montarmos seu site ou landing page completa.';
+    ? `Responda com informações reais ${doLocal} para criarmos e configurarmos o perfil no Google Maps.`
+    : `Responda com informações reais ${doLocal} para montarmos seu site ou landing page completa.`;
 
   const serializedTemplate = JSON.stringify({
     id: template.id,

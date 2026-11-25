@@ -20,7 +20,7 @@ import {
 import { ActiveTab } from './Navbar';
 import { authService } from '../services/authService';
 
-export type ExtendedActiveTab = ActiveTab | 'questionnaires' | 'admin' | 'site_auditor' | 'media_optimizer';
+export type ExtendedActiveTab = ActiveTab | 'site_questionnaires' | 'questionnaires' | 'admin' | 'site_auditor' | 'media_optimizer';
 
 interface SidebarProps {
   activeTab: ExtendedActiveTab;
@@ -90,12 +90,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       tab: 'questionnaires' as ExtendedActiveTab,
-      label: '33 Questionários GBP',
-      subtitle: 'Perguntas Estratégicas por Nicho',
+      label: 'Questionários Empresas Google',
+      subtitle: 'Perfis no Google Meu Negócio',
       icon: FileQuestion,
-      badge: '33 Nichos',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      badge: '34 Nichos',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
       section: 'PRINCIPAL',
+    },
+    {
+      tab: 'site_questionnaires' as ExtendedActiveTab,
+      label: 'Questionários Sites & LPs',
+      subtitle: 'Perguntas fáceis p/ Prompt Mestre',
+      icon: FileQuestion,
+      badge: '34 Nichos',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      section: 'ESTÚDIO DE SITES',
     },
     {
       tab: 'projects' as ExtendedActiveTab,

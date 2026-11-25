@@ -4,7 +4,7 @@ import { GASTRONOMIA_QUESTIONNAIRES } from './gastronomia';
 import { ENTRETENIMENTO_QUESTIONNAIRES } from './entretenimento';
 import { VAREJO_QUESTIONNAIRES } from './varejo';
 import { OUTROS_QUESTIONNAIRES } from './outros';
-import { buildTemplate } from './helper';
+import { buildTemplate, getNicheWorkplaceProfile, inPlace, ofPlace } from './helper';
 import { QuestionnaireTemplate } from './types';
 
 function pickSample(siteTpl: QuestionnaireTemplate, pattern: RegExp, fallback: string): string {
@@ -12,97 +12,26 @@ function pickSample(siteTpl: QuestionnaireTemplate, pattern: RegExp, fallback: s
   return match?.sampleAnswer?.trim() || fallback;
 }
 
-function getPlaceTerm(siteTpl: QuestionnaireTemplate): {
-  singular: string;
-  possessive: string;
-  facadeHint: string;
-} {
-  if (
-    ['medico_individual', 'fisioterapeuta', 'psicologo_terapeuta', 'nutricionista'].includes(siteTpl.id)
-  ) {
-    return {
-      singular: 'consultório ou clínica',
-      possessive: 'seu consultório ou clínica',
-      facadeHint: 'da clínica/consultório ou placa na porta da sala',
-    };
-  }
-  if (['clinica_estetica', 'clinica_medica', 'dentista_odonto'].includes(siteTpl.id)) {
-    return {
-      singular: 'clínica ou consultório',
-      possessive: 'sua clínica',
-      facadeHint: 'da fachada da clínica ou placa na porta',
-    };
-  }
-  if (['escritorio_advocacia', 'arquitetura_interiores', 'contabilidade_contabil'].includes(siteTpl.id)) {
-    return {
-      singular: 'escritório',
-      possessive: 'seu escritório',
-      facadeHint: 'do prédio e placa do escritório na entrada',
-    };
-  }
-  if (['restaurante', 'pizzaria', 'bar_pub', 'cafeteria', 'confeitaria'].includes(siteTpl.id)) {
-    return {
-      singular: 'estabelecimento',
-      possessive: 'seu estabelecimento',
-      facadeHint: 'da fachada do local, salão, mesas e pratos/produtos',
-    };
-  }
-  if (
-    ['loja_roupas', 'joalheria_relojoaria', 'floricultura', 'produtos_agricolas', 'petshop_veterinaria'].includes(
-      siteTpl.id
-    )
-  ) {
-    return {
-      singular: 'loja',
-      possessive: 'sua loja',
-      facadeHint: 'da fachada da loja, vitrine, interior e produtos',
-    };
-  }
-  if (siteTpl.id === 'igreja_religiosa') {
-    return {
-      singular: 'igreja ou comunidade',
-      possessive: 'sua igreja',
-      facadeHint: 'da fachada do templo, nave/auditório e letreiro',
-    };
-  }
-  if (siteTpl.id === 'hotel_pousada') {
-    return {
-      singular: 'hotel ou pousada',
-      possessive: 'seu hotel ou pousada',
-      facadeHint: 'da fachada, recepção, quartos e área de lazer',
-    };
-  }
-  if (siteTpl.id === 'salao_beleza') {
-    return {
-      singular: 'salão ou barbearia',
-      possessive: 'seu salão',
-      facadeHint: 'da fachada, cadeiras/espaço interno e atendimentos',
-    };
-  }
-  return {
-    singular: 'empresa',
-    possessive: 'sua empresa',
-    facadeHint: 'da fachada, recepção/interior e equipe trabalhando',
-  };
-}
-
 /**
  * Gera um questionário específico de 12 perguntas fáceis para o CLIENTE responder,
  * reunindo exatamente os dados necessários para criar e configurar o perfil no Google Meu Negócio
- * (sem perguntas de criação de site e sem jargões técnicos da agência).
+ * (sem perguntas de criação de site e sem jargões técnicos da agência),
+ * respeitando o local real de cada profissão (escritório, consultório, clínica, estúdio, loja, etc.).
  */
 export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): QuestionnaireTemplate {
-  const place = getPlaceTerm(siteTpl);
+  const profile = getNicheWorkplaceProfile(siteTpl.id);
+  const doLocal = ofPlace(profile);
+  const noLocal = inPlace(profile);
   const gbpId = `gbp_${siteTpl.id}`;
 
   const sampleNameAndReg = pickSample(
     siteTpl,
-    /nome da sua empresa|nome profissional|nome completo/i,
+    /nome d[eoas] |nome profissional|nome completo/i,
     siteTpl.sampleBusinessName
   );
   const sampleServices = pickSample(
     siteTpl,
-    /principais serviços|tratamentos|produtos|cardápio/i,
+    /liste de 4 a 6|serviços, produtos e condições/i,
     `Principais serviços de ${siteTpl.title}.`
   );
   const sampleHistory = pickSample(
@@ -117,7 +46,7 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
   );
   const sampleAddressAndAreas = pickSample(
     siteTpl,
-    /endereço físico|onde o cliente|atende em endereço/i,
+    /endereço completo|endereço físico|atende presencialmente|cidade-base|localização/i,
     'Rua Central, 500 — Centro (atendimento presencial e na região).'
   );
   const sampleHours = pickSample(
@@ -134,12 +63,12 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
     .trim();
   const samplePricing = pickSample(
     siteTpl,
-    /formas de pagamento|preços/i,
+    /formas de pagamento|pagamentos|preços|honorários|mensalidades|diárias|negociação|orçamentos e pagamentos|propostas e pagamentos|ingressos e locação|contribuir|dízimos/i,
     'Aceitamos Pix, cartões de crédito e débito.'
   );
   const sampleFaq = pickSample(
     siteTpl,
-    /perguntas que os clientes sempre fazem|dúvidas/i,
+    /perguntas que seus|perguntas que os clientes|dúvidas comuns/i,
     '1. Precisa agendar antes? Sim, pelo WhatsApp. 2. Quais formas de pagamento aceitam? Pix e cartão.'
   );
   const samplePhotos = pickSample(
@@ -150,14 +79,19 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
 
   const secondaryPreview = siteTpl.suggestedSecondaryCategories.slice(0, 3).join(', ');
 
+  const cleanBaseTitle = siteTpl.title
+    .replace(/\s*\(Landing Page Pessoal\)\s*/i, '')
+    .replace(/\s*\(Landing Page\)\s*/i, '')
+    .trim();
+
   return buildTemplate({
     id: gbpId,
     categoryKey: siteTpl.categoryKey,
     categoryTitle: siteTpl.categoryTitle,
     categoryEmoji: siteTpl.categoryEmoji,
-    title: `${siteTpl.title} (Google Meu Negócio)`,
+    title: `${cleanBaseTitle} (Google Meu Negócio)`,
     emoji: siteTpl.emoji,
-    subtitle: `Questionário simples com 12 perguntas reais para criar e configurar o perfil de ${siteTpl.title} no Google Meu Negócio e Google Maps`,
+    subtitle: `Questionário simples com 12 perguntas reais para criar e configurar o perfil de ${cleanBaseTitle} no Google Meu Negócio e Google Maps`,
     totalQuestions: 12,
     sections: [
       'Identificação Oficial e Atuação',
@@ -172,14 +106,14 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
     rawQuestions: [
       {
         section: 'Identificação Oficial e Atuação',
-        question: `Qual é o nome exato de ${place.possessive} como aparece na fachada ou placa da porta (sem inventar palavras extras) e há quanto tempo vocês atuam (ou número do registro/CNPJ)?`,
+        question: `Qual é o nome exato ${doLocal} como aparece na fachada ou placa da porta (sem inventar palavras extras) e há quanto tempo vocês atuam (ou número do registro/CNPJ)?`,
         placeholder: `Ex: ${siteTpl.sampleBusinessName} (atuando desde 2016)`,
         helperText: 'O Google exige que o nome do perfil seja igual ao da placa ou documento oficial para evitar bloqueios.',
         sampleAnswer: sampleNameAndReg,
       },
       {
         section: 'Identificação Oficial e Atuação',
-        question: `Qual é a atividade principal de ${place.possessive} (ex: ${siteTpl.defaultPrimaryCategory}) e quais outras áreas ou especialidades secundárias vocês também atendem?`,
+        question: `Qual é a atividade principal ${doLocal} (ex: ${siteTpl.defaultPrimaryCategory}) e quais outras áreas ou especialidades secundárias vocês também atendem?`,
         placeholder: `Ex: Principal: ${siteTpl.defaultPrimaryCategory} | Outras: ${secondaryPreview}`,
         helperText: 'Essas informações definem a categoria principal e as categorias extras dentro do perfil no Google.',
         sampleAnswer: `Atividade principal: ${siteTpl.defaultPrimaryCategory}. Outras especialidades atendidas: ${siteTpl.suggestedSecondaryCategories.join(', ')}.`,
@@ -193,14 +127,14 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
       },
       {
         section: 'Perfil Existente, Endereço e Regiões Atendidas',
-        question: `Vocês têm ponto físico com placa na fachada para receber clientes OU atendem somente em domicílio/online sem local aberto ao público? Informe o endereço completo com CEP.`,
+        question: profile.gbpLocationQuestion,
         placeholder: 'Ex: Rua das Flores, 240, Sala 3 — Centro, Cidade/UF, CEP 01234-000 (com placa na frente).',
         helperText: 'Define se o pino com endereço aparecerá aberto no mapa ou se configuraremos apenas a área de atendimento.',
         sampleAnswer: sampleAddressAndAreas,
       },
       {
         section: 'Perfil Existente, Endereço e Regiões Atendidas',
-        question: `Quais bairros e cidades vizinhas ${place.possessive} atende presencialmente ou recebe clientes com mais frequência?`,
+        question: `Quais bairros e cidades vizinhas ${profile.placePossessive} atende presencialmente ou recebe ${profile.clientTerm} com mais frequência?`,
         placeholder: 'Ex: Centro, Vila Nova, Jardim Paulista e cidades vizinhas até 30 km.',
         helperText: 'Preenche as regiões de atendimento cadastradas dentro do seu perfil no Google Maps.',
         sampleAnswer: 'Bairros centrais, zonas comerciais e cidades vizinhas da região metropolitana.',
@@ -214,45 +148,45 @@ export function buildClientGbpTemplate(siteTpl: QuestionnaireTemplate): Question
       },
       {
         section: 'Contatos, Horários e Facilidades do Local',
-        question: `Quais são os dias e horários exatos de funcionamento (inclua se abre aos sábados, domingos, feriados ou se fecha no almoço)?`,
+        question: `Quais são os dias e horários exatos de funcionamento ${doLocal} (inclua se abre aos sábados, domingos, feriados ou se fecha no almoço)?`,
         placeholder: 'Ex: Segunda a Sexta: 08:30 às 18:00 | Sábado: 08:30 às 12:30 | Domingo: Fechado.',
         helperText: 'Mantém o aviso de "Aberto agora" sempre certo no Google Maps para ninguém dar viagem perdida.',
         sampleAnswer: sampleHours,
       },
       {
         section: 'Contatos, Horários e Facilidades do Local',
-        question: `Quais comodidades e formas de pagamento existem no local (ex: estacionamento próprio ou convênio, acesso para cadeirante, banheiro adaptado, Wi-Fi, ar-condicionado, atende só com hora marcada, Pix/cartão)?`,
-        placeholder: 'Ex: Estacionamento gratuito, entrada acessível para cadeirante, Wi-Fi, ar-condicionado, aceita Pix e cartões.',
-        helperText: 'Preenche todos os selos e atributos oficiais que os clientes olham antes de ir até o local.',
-        sampleAnswer: `Estrutura com ar-condicionado, Wi-Fi gratuito, acessibilidade e fácil acesso; ${samplePricing}`,
+        question: `Quais comodidades e formas de pagamento existem ${noLocal} (ex: ${profile.gbpAmenitiesExamples})?`,
+        placeholder: `Ex: ${profile.gbpAmenitiesExamples}.`,
+        helperText: 'Preenche todos os selos e atributos oficiais que as pessoas olham antes de visitar ou entrar em contato.',
+        sampleAnswer: `Estrutura preparada com ${profile.gbpAmenitiesExamples}; ${samplePricing}`,
       },
       {
         section: 'Serviços, Fotos Reais, Dúvidas e Avaliações',
-        question: `Liste de 5 a 8 principais serviços ou produtos que vocês fazem (com breve explicação e faixa de preço, se puder divulgar) e resuma a história e os diferenciais de ${place.possessive}.`,
-        placeholder: 'Ex: Lista dos serviços principais + anos de experiência e diferenciais no atendimento.',
+        question: `Liste de 5 a 8 principais ${profile.offeringTerm} ${doLocal} (com breve explicação) e resuma a história e os diferenciais para a descrição oficial do perfil.`,
+        placeholder: `Ex: Lista dos principais ${profile.offeringTerm} + anos de experiência e diferenciais no atendimento.`,
         helperText: 'Preenche a aba inteira de Serviços/Produtos e a descrição oficial do perfil no Google.',
-        sampleAnswer: `Serviços principais: ${sampleServices}\n\nSobre e diferenciais: ${sampleHistory} Diferenciais: ${sampleDifferentials}`,
+        sampleAnswer: `Principais itens: ${sampleServices}\n\nSobre e diferenciais: ${sampleHistory} Diferenciais: ${sampleDifferentials}`,
       },
       {
         section: 'Serviços, Fotos Reais, Dúvidas e Avaliações',
-        question: `Quais fotos reais vocês já têm hoje (${place.facadeHint}) e, se o Google pedir um vídeo curto mostrando a fachada, a placa e a parte interna para confirmar o endereço, conseguem gravar pelo celular?`,
+        question: `Quais fotos reais vocês já têm hoje (${profile.gbpFacadeHint}) e, se o Google pedir um vídeo curto mostrando a fachada, a placa e a parte interna para confirmar o endereço, conseguem gravar pelo celular?`,
         placeholder: 'Ex: Temos fotos da fachada, placa e equipe; sim, conseguimos gravar o vídeo curto pelo celular.',
         helperText: 'Fotos reais aumentam muito os cliques no perfil e o vídeo costuma ser pedido pelo Google na verificação.',
         sampleAnswer: `${samplePhotos} Sim, conseguimos gravar um vídeo curto da rua, fachada/placa e interior caso o Google solicite na verificação.`,
       },
       {
         section: 'Serviços, Fotos Reais, Dúvidas e Avaliações',
-        question: `Quais são as 3 a 5 dúvidas que os clientes mais perguntam antes de visitar ou ligar (ex: precisa agendar antes, tem estacionamento, aceita plano/cartão, entrega em domicílio)?`,
-        placeholder: 'Ex: 1. Precisa agendar? 2. Tem estacionamento? 3. Quais formas de pagamento aceitam?',
+        question: `Quais são as 3 a 5 dúvidas que seus ${profile.clientTerm} mais perguntam antes de visitar ou ligar (ex: ${profile.gbpFaqExamples})?`,
+        placeholder: `Ex: ${profile.gbpFaqExamples}.`,
         helperText: 'Vamos deixar essas perguntas já respondidas na aba de Perguntas e Respostas do Google Meu Negócio.',
         sampleAnswer: sampleFaq,
       },
       {
         section: 'Serviços, Fotos Reais, Dúvidas e Avaliações',
-        question: `Quantas avaliações vocês já têm hoje no Google (se já tiverem perfil) e como costumam pedir avaliação aos clientes satisfeitos ao terminar o atendimento?`,
+        question: `Quantas avaliações vocês já têm hoje no Google (se já tiverem perfil) e como costumam pedir avaliação aos ${profile.clientTerm} satisfeitos ao terminar o atendimento?`,
         placeholder: 'Ex: Ainda não temos perfil/avaliações (ou: temos 28 avaliações 4.9 estrelas e enviamos o link no WhatsApp).',
         helperText: 'Ajuda a organizar as respostas das avaliações atuais e orientar como receber novas notas 5 estrelas.',
-        sampleAnswer: 'Já recebemos ótimos elogios dos clientes no WhatsApp e vamos padronizar o envio do link oficial de avaliação após cada atendimento.',
+        sampleAnswer: 'Já recebemos ótimos elogios no WhatsApp e vamos padronizar o envio do link oficial de avaliação após cada atendimento.',
       },
     ],
   });

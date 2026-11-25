@@ -243,9 +243,9 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
           }`}
         >
           <BookOpen className="w-4 h-4 text-indigo-300" />
-          <span>33 Questionários por Nicho</span>
+          <span>Questionários Google Meu Negócio</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-700/50 font-bold">
-            33 NICHOS
+            34 NICHOS
           </span>
         </button>
 
@@ -382,8 +382,8 @@ export const GbpProHub: React.FC<GbpProHubProps> = ({
               await handleGenerateDossier(data as GbpQuestionnaireData);
             }}
             onCreateSiteProject={onCreateSiteProject}
-            onBack={onBack}
             initialMode="gbp"
+            lockedMode="gbp"
           />
         </div>
       )}

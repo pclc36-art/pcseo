@@ -458,7 +458,7 @@ export const ConsolidatedMetricsDashboard: React.FC<ConsolidatedMetricsDashboard
               onClick={() => onNavigateTab('questionnaires')}
               className="text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <span>33 Questionários</span>
+              <span>Questionários GBP</span>
             </button>
           </div>
         </div>

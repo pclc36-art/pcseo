@@ -197,50 +197,73 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Featured Modules Spotlight: Site Auditor, Questionnaires, GBP Pro, Media Optimizer, Admin */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* Module 1: Site Auditor by URL */}
-        <div 
-          onClick={() => setActiveTab('site_auditor')}
-          className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-slate-900 to-slate-950 border border-cyan-500/40 hover:border-cyan-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
+      {/* Featured Modules Spotlight: Sites & LP Questionnaires, GBP Questionnaires, Site Auditor, GBP Pro, Media Optimizer, Admin */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Module 1: Questionários para Sites & Landing Pages (Prompt Mestre) */}
+        <div
+          onClick={() => setActiveTab('site_questionnaires' as any)}
+          className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-indigo-950/40 to-slate-950 border border-cyan-500/40 hover:border-cyan-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl">🌐</span>
+            <span className="text-2xl">📋</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-              Master Site Engine 9.0
+              34 Nichos • Prompt Mestre
             </span>
           </div>
           <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
-            Auditor de Sites por Link
+            Questionários Sites & LPs
           </h3>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            Diagnóstico baseado nas 63 Diretrizes do Master Site Engine 9.0 com melhorias prontas para copiar.
+            Perguntas fáceis e úteis para o cliente responder e unir ao Prompt Mestre na criação de sites e landing pages completas.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-cyan-400 group-hover:translate-x-1 transition-transform">
-            <span>Auditar Site Agora</span>
+            <span>Abrir Questionários de Sites</span>
             <span>→</span>
           </div>
         </div>
 
-        {/* Module 2: 33 Nichos GBP Questionnaires */}
-        <div 
+        {/* Module 2: Questionários para Empresas Google (Google Meu Negócio) */}
+        <div
           onClick={() => setActiveTab('questionnaires')}
-          className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/50 via-slate-900 to-slate-950 border border-indigo-500/30 hover:border-indigo-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
+          className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/50 via-slate-900 to-slate-950 border border-emerald-500/30 hover:border-emerald-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl">📝</span>
+            <span className="text-2xl">📍</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              34 Nichos • Google Maps
+            </span>
+          </div>
+          <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+            Questionários Empresas Google
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            Perguntas práticas focadas nos dados reais que o Google exige para criar e melhorar perfis no Google Meu Negócio.
+          </p>
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+            <span>Abrir Questionários GBP</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        {/* Module 3: Site Auditor by URL */}
+        <div 
+          onClick={() => setActiveTab('site_auditor')}
+          className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/50 via-slate-900 to-slate-950 border border-indigo-500/40 hover:border-indigo-400 cursor-pointer transition-all hover:scale-[1.01] shadow-lg group relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">🌐</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-              33 Nichos GBP
+              Master Site Engine 9.0
             </span>
           </div>
           <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
-            33 Questionários GBP
+            Auditor de Sites por Link
           </h3>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            Perguntas estratégicas otimizadas para ranquear no Top 3 do Google Maps nos 33 nichos de mercado.
+            Diagnóstico baseado nas 63 Diretrizes do Master Site Engine 9.0 com melhorias preservando imagens e dados do cliente.
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-indigo-400 group-hover:translate-x-1 transition-transform">
-            <span>Questionários GBP</span>
+            <span>Auditar Site Agora</span>
             <span>→</span>
           </div>
         </div>

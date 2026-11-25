@@ -33,7 +33,7 @@ export const ENTRETENIMENTO_QUESTIONNAIRES: QuestionnaireTemplate[] = [
     },
     customQuestion2: {
       section: 'Repertório, Formatos & Vídeos ao Vivo no Site',
-      question: 'A banda leva estrutura própria de som, iluminação e técnico ou precisa de rider locado? Atendem outras cidades e estados?',
+      question: 'A banda leva estrutura própria de som, iluminação e técnico ou o cliente precisa alugar no local? Vocês atendem outras cidades e estados?',
       placeholder: 'Ex: Levamos som e iluminação cênica para até 400 convidados (ou enviamos rider técnico para grandes festas); viajamos para todo o Brasil.',
       helperText: 'Responde à maior dúvida logística de cerimonialistas e empresas antes mesmo do primeiro contato.',
       sampleAnswer: 'Podemos incluir pacote completo de sonorização e iluminação com técnico dedicado para eventos de até 400 pessoas ou atuar com rider técnico compatível com qualquer grande casa/buffet. Viajamos para todo o Sudeste e Brasil.',
